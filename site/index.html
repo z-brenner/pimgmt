@@ -1,0 +1,1836 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vacuum Cube Set</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Interactive 3D concept model: four vacuum compression packing cubes and a palm-size USB-C pump.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: full-bleed 3D stage; brand top-left, spec sheet docked right (bottom sheet on phones), demo timeline along the bottom. */
+:root {
+  --bg: #DDE3E0;
+  --bg-2: #F4F6F5;
+  --fg: #15201D;
+  --muted: #56645F;
+  --line: #C3CDC9;
+  --panel: rgba(248, 250, 249, 0.86);
+  --chip: #E7ECEA;
+  --accent: #D9531A;
+  --accent-fg: #FFFFFF;
+  --good: #2F7D55;
+  --air: #2F86C8;
+  --shadow: 0.24;
+  --font-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0C1110; --bg-2: #1B2422; --fg: #E3EAE7; --muted: #8C9C96; --line: #2B3734;
+    --panel: rgba(19, 26, 24, 0.84); --chip: #222D2A; --accent: #FF7438; --accent-fg: #1A0D06;
+    --good: #5FCB92; --air: #BFE3FF; --shadow: 0.55; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0C1110; --bg-2: #1B2422; --fg: #E3EAE7; --muted: #8C9C96; --line: #2B3734;
+  --panel: rgba(19, 26, 24, 0.84); --chip: #222D2A; --accent: #FF7438; --accent-fg: #1A0D06;
+  --good: #5FCB92; --air: #BFE3FF; --shadow: 0.55; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 14px; line-height: 1.45;
+  overflow: hidden; -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; }
+button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.app { position: fixed; inset: 0; }
+.stage {
+  position: absolute; inset: 0;
+  background: radial-gradient(120% 95% at 45% 0%, var(--bg-2) 0%, var(--bg) 72%);
+}
+.stage canvas { display: block; width: 100%; height: 100%; touch-action: none; outline: none; }
+.labels { position: absolute; inset: 0; pointer-events: none; }
+
+/* ---------- top bar ---------- */
+.topbar {
+  position: absolute; top: 0; left: 0; right: 0;
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap;
+  padding-top: calc(16px + env(safe-area-inset-top, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  pointer-events: none;
+}
+.topbar > * { pointer-events: auto; }
+.brand { min-width: 0; }
+.eyebrow {
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); margin: 0 0 6px;
+}
+.brand h1 {
+  margin: 0; font-family: var(--font-display); font-stretch: 125%; font-weight: 800;
+  font-size: clamp(22px, 3.2vw, 34px); line-height: 1; letter-spacing: -0.01em; text-wrap: balance;
+}
+.brand h1 .dot { color: var(--accent); }
+.brand .tag { margin: 8px 0 0; color: var(--muted); max-width: 42ch; }
+
+.controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.seg {
+  display: inline-flex; padding: 3px; border-radius: 999px; background: var(--panel);
+  border: 1px solid var(--line); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+}
+.seg button {
+  border: 0; background: transparent; padding: 7px 14px; border-radius: 999px; cursor: pointer;
+  font-weight: 600; font-size: 13px;
+}
+.seg button[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
+.swatches {
+  display: inline-flex; gap: 6px; align-items: center; padding: 6px 10px; border-radius: 999px;
+  background: var(--panel); border: 1px solid var(--line); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+}
+.swatches span { font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-right: 2px; }
+.swatch {
+  width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--panel); cursor: pointer; padding: 0;
+  box-shadow: 0 0 0 1px var(--line);
+}
+.swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--accent); }
+
+/* ---------- spec panel ---------- */
+.panel {
+  position: absolute; right: max(16px, env(safe-area-inset-right, 0px)); top: 112px; width: 340px;
+  max-height: calc(100% - 128px - env(safe-area-inset-bottom, 0px)); overflow-y: auto;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  padding: 18px; display: flex; flex-direction: column; gap: 14px;
+}
+.panel h2 { margin: 0; font-family: var(--font-display); font-stretch: 112%; font-size: 20px; font-weight: 750; text-wrap: balance; }
+.panel .sub { margin: 2px 0 0; color: var(--muted); }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0; }
+.kv dt { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding-top: 2px; }
+.kv dd { margin: 0; font-variant-numeric: tabular-nums; min-width: 0; }
+.kv dd b { font-family: var(--font-mono); font-weight: 600; font-size: 13px; }
+.feat { margin: 0; padding: 0; list-style: none; display: grid; gap: 7px; }
+.feat li { display: grid; grid-template-columns: 10px 1fr; gap: 8px; align-items: baseline; }
+.feat li::before { content: ""; width: 6px; height: 6px; border-radius: 2px; background: var(--accent); transform: translateY(-1px); }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn {
+  border: 1px solid var(--line); background: var(--chip); padding: 9px 14px; border-radius: 10px;
+  cursor: pointer; font-weight: 600; font-size: 13px;
+}
+.btn:hover:not(:disabled) { border-color: var(--fg); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.lineup { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.lineup button {
+  width: 100%; display: grid; grid-template-columns: 34px 1fr auto; gap: 10px; align-items: center; text-align: left;
+  padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--chip); cursor: pointer;
+}
+.lineup button:hover { border-color: var(--fg); }
+.lineup .badge {
+  width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center;
+  font-family: var(--font-display); font-stretch: 125%; font-weight: 800; font-size: 15px;
+  background: var(--fg); color: var(--bg);
+}
+.lineup .nm { font-weight: 650; }
+.lineup .dm { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.lineup .vol { font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; }
+.note { font-size: 12px; color: var(--muted); margin: 0; border-top: 1px solid var(--line); padding-top: 10px; }
+.back { align-self: flex-start; border: 0; background: none; padding: 0; color: var(--muted); cursor: pointer; font-size: 12px; font-family: var(--font-mono); }
+.back:hover { color: var(--fg); }
+
+/* ---------- HUD ---------- */
+.hud {
+  position: absolute; left: 50%; transform: translateX(-50%); top: 112px;
+  display: flex; gap: 18px; align-items: center; padding: 10px 16px; border-radius: 12px;
+  background: var(--panel); border: 1px solid var(--line); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  font-variant-numeric: tabular-nums;
+}
+.hud .m { display: grid; gap: 1px; }
+.hud .k { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.hud .v { font-family: var(--font-mono); font-size: 17px; font-weight: 600; }
+.hud .v.go { color: var(--good); }
+.bar { width: 64px; height: 6px; border-radius: 3px; background: var(--chip); overflow: hidden; margin-top: 4px; }
+.bar i { display: block; height: 100%; background: var(--good); width: 100%; }
+
+/* ---------- demo caption + timeline ---------- */
+.caption {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  bottom: calc(96px + env(safe-area-inset-bottom, 0px)); width: min(640px, calc(100% - 32px));
+  text-align: center; pointer-events: none;
+}
+.caption h3 {
+  margin: 0; font-family: var(--font-display); font-stretch: 118%; font-weight: 780; font-size: clamp(18px, 2.4vw, 26px); text-wrap: balance;
+}
+.caption p { margin: 6px auto 0; color: var(--muted); max-width: 56ch; text-wrap: pretty; }
+.timeline {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px)); max-width: calc(100% - 32px);
+  display: flex; gap: 8px; align-items: center; padding: 6px; border-radius: 14px;
+  background: var(--panel); border: 1px solid var(--line); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+}
+.timeline .ctl { flex: none; display: flex; gap: 4px; }
+.iconbtn {
+  width: 38px; height: 38px; border-radius: 10px; border: 0; background: var(--fg); color: var(--bg);
+  display: grid; place-items: center; cursor: pointer;
+}
+.iconbtn.ghost { background: var(--chip); color: var(--fg); }
+.iconbtn svg { width: 16px; height: 16px; fill: currentColor; }
+.steps { display: flex; gap: 4px; margin: 0; padding: 0; list-style: none; overflow-x: auto; min-width: 0; scrollbar-width: none; }
+.steps::-webkit-scrollbar { display: none; }
+.steps button {
+  white-space: nowrap; border: 0; background: transparent; padding: 8px 10px; border-radius: 10px; cursor: pointer;
+  display: flex; gap: 7px; align-items: center; font-size: 13px; color: var(--muted);
+}
+.steps button .n {
+  font-family: var(--font-mono); font-size: 11px; width: 20px; height: 20px; border-radius: 50%;
+  display: grid; place-items: center; border: 1px solid var(--line);
+}
+.steps button.done { color: var(--fg); }
+.steps button.done .n { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.steps button.cur { color: var(--fg); background: var(--chip); font-weight: 650; }
+.steps button.cur .n { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+
+.hint {
+  position: absolute; left: max(16px, env(safe-area-inset-left, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  margin: 0; font-family: var(--font-mono); font-size: 11px; color: var(--muted); pointer-events: none;
+}
+
+/* ---------- 3D labels ---------- */
+.tag3d {
+  pointer-events: auto; cursor: pointer; border: 1px solid var(--line); background: var(--panel);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  padding: 4px 9px; border-radius: 999px; font-size: 12px; font-weight: 650; white-space: nowrap;
+  display: flex; gap: 6px; align-items: center; transition: opacity .25s;
+}
+.tag3d b { font-family: var(--font-display); font-stretch: 125%; font-weight: 800; }
+.tag3d small { font-family: var(--font-mono); font-size: 10px; color: var(--muted); font-weight: 400; }
+.hot3d {
+  pointer-events: none; display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600;
+  white-space: nowrap; margin-left: -5px;
+}
+.hot3d::before {
+  content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 28%, transparent); flex: none;
+  animation: pulse 1.8s ease-in-out infinite;
+}
+.hot3d span { background: var(--panel); border: 1px solid var(--line); padding: 3px 8px; border-radius: 6px; }
+@keyframes pulse { 50% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--accent) 10%, transparent); } }
+
+.fallback {
+  position: absolute; inset: 0; display: grid; place-items: center; text-align: center;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.fallback p { max-width: 46ch; color: var(--muted); }
+
+/* ---------- phones ---------- */
+@media (max-width: 760px) {
+  .brand .tag { display: none; }
+  .eyebrow { display: none; }
+  .controls { width: 100%; justify-content: space-between; }
+  .panel {
+    top: auto; bottom: 0; left: 0; right: 0; width: auto; max-height: 40%;
+    border-radius: 16px 16px 0 0; border-bottom: 0;
+    padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .hud { top: 108px; gap: 12px; padding: 8px 12px; }
+  .hud .v { font-size: 15px; }
+  .bar { width: 44px; }
+  .hint { display: none; }
+  .caption { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+  .caption p { font-size: 13px; }
+  .timeline { left: max(16px, env(safe-area-inset-left, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); transform: none; max-width: none; }
+  .steps button .t { display: none; }
+  .steps button.cur .t { display: inline; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hot3d::before { animation: none; }
+}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="stage" id="stage">
+    <canvas id="c" aria-label="Interactive 3D model of the packing cube set" tabindex="0"></canvas>
+    <div class="labels" id="labels"></div>
+  </div>
+
+  <header class="topbar">
+    <div class="brand">
+      <p class="eyebrow">Product Innovation Management · Concept model</p>
+      <h1 id="productName">Vacuum Cube Set<span class="dot">.</span></h1>
+      <p class="tag">Four compression packing cubes and one palm-size pump. Pack, zip, pump the air out, fit more in the bag.</p>
+    </div>
+    <div class="controls">
+      <div class="seg" role="group" aria-label="View mode">
+        <button id="modeExplore" aria-pressed="true">Explore</button>
+        <button id="modeDemo" aria-pressed="false">Watch demo</button>
+      </div>
+      <div class="swatches" id="swatches" role="group" aria-label="Colorway"><span>Color</span></div>
+    </div>
+  </header>
+
+  <aside class="panel" id="panel" aria-live="polite"></aside>
+
+  <div class="hud" id="hud" hidden>
+    <div class="m"><span class="k">Volume</span><span class="v go" id="hudVol">0%</span></div>
+    <div class="m"><span class="k">Vacuum</span><span class="v" id="hudVac">0 kPa</span></div>
+    <div class="m"><span class="k">Battery</span><span class="v" id="hudBat">100%</span><span class="bar"><i id="hudBatBar"></i></span></div>
+  </div>
+
+  <div class="caption" id="caption" hidden>
+    <h3 id="capTitle"></h3>
+    <p id="capText"></p>
+  </div>
+
+  <nav class="timeline" id="timeline" hidden aria-label="Demo steps">
+    <div class="ctl">
+      <button class="iconbtn" id="playBtn" aria-label="Pause">
+        <svg viewBox="0 0 16 16" id="playIcon"><rect x="3" y="2" width="3.5" height="12" rx="1"/><rect x="9.5" y="2" width="3.5" height="12" rx="1"/></svg>
+      </button>
+      <button class="iconbtn ghost" id="restartBtn" aria-label="Restart demo">
+        <svg viewBox="0 0 16 16"><path d="M8 2a6 6 0 1 1-5.2 3H1l3-3.5L7 5H4.6A4.3 4.3 0 1 0 8 3.7z"/></svg>
+      </button>
+    </div>
+    <ol class="steps" id="steps"></ol>
+  </nav>
+
+  <p class="hint" id="hint">Drag to orbit · Scroll or pinch to zoom · Click a cube</p>
+
+  <div class="fallback" id="fallback" hidden>
+    <div>
+      <h2>The 3D viewer couldn't start</h2>
+      <p>It loads the three.js library from cdn.jsdelivr.net, so it needs an internet connection and a browser with WebGL (any current Chrome, Edge, Safari or Firefox).</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  // If the module below never boots (offline, CDN blocked, no WebGL), show a readable message.
+  setTimeout(function () { if (!window.__cubesReady) document.getElementById('fallback').hidden = false; }, 9000);
+</script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+/* =====================================================================
+   PRODUCT CONFIG  (edit these to match your team's real numbers)
+   1 scene unit = 10 cm. Dimensions are concept targets, not tested specs.
+   ===================================================================== */
+const S_MIN = 0.48;               // compressed height as a fraction of full height
+const ACCENT = '#E0561C';          // zipper pulls, valve caps, pump button
+const COLORWAYS = [
+  { id: 'slate', name: 'Slate', fabric: '#3E5561' },
+  { id: 'sage',  name: 'Sage',  fabric: '#687F69' },
+  { id: 'sand',  name: 'Sand',  fabric: '#B29D7A' },
+  { id: 'night', name: 'Night', fabric: '#26292C' },
+];
+const CUBES = [
+  { id: 'L', kind: 'rect', name: 'Large',    w: 4.5, h: 1.2, d: 3.3, pos: [-2.95, 0, 1.35],
+    dims: '45 × 33 × 12 cm', use: 'Bulky layers: jackets, sweaters, jeans', clothes: ['#2F4A66', '#B9B3A6', '#6B3A3A'] },
+  { id: 'M', kind: 'rect', name: 'Medium',   w: 3.3, h: 1.1, d: 2.5, pos: [2.5, 0, 1.55],
+    dims: '33 × 25 × 11 cm', use: 'Shirts, trousers, a week of tees', clothes: ['#D8D2C4', '#3B5D7C', '#9C4A35'] },
+  { id: 'S', kind: 'rect', name: 'Small',    w: 2.5, h: 1.0, d: 1.8, pos: [2.3, 0, -1.9],
+    dims: '25 × 18 × 10 cm', use: 'Underwear, socks, swimwear', clothes: ['#E6E1D6', '#5A6B4E', '#2C2F33'] },
+  { id: 'C', kind: 'cyl',  name: 'Cylinder', len: 3.0, dia: 1.2, pos: [-2.9, 0, -2.2],
+    dims: '30 cm long × 12 cm Ø', use: 'Rolled tees, gym kit, cables and chargers', clothes: ['#C7533B', '#2E4B5F'] },
+];
+const PUMP_DOCK = new THREE.Vector3(-0.1, 0, -1.55);
+const SUITCASE_AT = new THREE.Vector3(11.5, 0, 0.4);
+
+/* ===================================================================== */
+
+const DEG = Math.PI / 180;
+const TILE = 0.5;
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const ease = {
+  linear: t => t,
+  inOut: t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2,
+  out: t => 1 - Math.pow(1 - t, 3),
+  outQuint: t => 1 - Math.pow(1 - t, 5),
+  back: t => { const c1 = 1.4, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); },
+  bounce: t => {
+    const n1 = 7.5625, d1 = 2.75;
+    if (t < 1 / d1) return n1 * t * t;
+    if (t < 2 / d1) return n1 * (t -= 1.5 / d1) * t + 0.75;
+    if (t < 2.5 / d1) return n1 * (t -= 2.25 / d1) * t + 0.9375;
+    return n1 * (t -= 2.625 / d1) * t + 0.984375;
+  },
+};
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- tween engine (promise based, cancellable, pausable) ---------- */
+const CANCEL = Symbol('cancel');
+let tweens = [];
+let runToken = 0;
+let FAST = false;
+let paused = false;
+function tween(dur, update, e = ease.inOut) {
+  if (FAST || dur <= 0) { update(1, 1); return Promise.resolve(); }
+  return new Promise((res, rej) => tweens.push({ t: 0, dur, update, e, res, rej, tok: runToken }));
+}
+const wait = s => tween(s, () => {}, ease.linear);
+function cancelAll() {
+  runToken++;
+  const old = tweens; tweens = [];
+  old.forEach(tw => tw.rej(CANCEL));
+}
+function stepTweens(dt) {
+  if (paused) return;
+  const list = tweens.slice();
+  for (const tw of list) {
+    tw.t = Math.min(tw.dur, tw.t + dt);
+    const k = tw.t / tw.dur;
+    tw.update(tw.e(k), k);
+    if (k >= 1) { tweens.splice(tweens.indexOf(tw), 1); tw.res(); }
+  }
+}
+let busy = false;
+async function runSeq(fn) {
+  cancelAll();
+  busy = true; refreshPanel();
+  try { await fn(); }
+  catch (e) { if (e !== CANCEL) console.error(e); else return; }
+  busy = false; refreshPanel();
+}
+
+/* ---------- renderer / scene ---------- */
+const canvas = document.getElementById('c');
+const stage = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.setClearColor(0x000000, 0);
+
+const scene = new THREE.Scene();
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
+
+const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 200);
+camera.position.set(1.5, 11, 14);
+
+const labelRenderer = new CSS2DRenderer({ element: document.getElementById('labels') });
+
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 3;
+controls.maxDistance = 45;
+controls.maxPolarAngle = 84 * DEG;
+controls.target.set(-0.3, 0.3, 0.2);
+controls.autoRotate = !reduceMotion;
+controls.autoRotateSpeed = 0.35;
+
+const hemi = new THREE.HemisphereLight(0xffffff, 0x8a9590, 0.35);
+scene.add(hemi);
+const key = new THREE.DirectionalLight(0xffffff, 1.6);
+key.position.set(-6, 14, 8);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+key.shadow.camera.left = -10; key.shadow.camera.right = 18;
+key.shadow.camera.top = 10; key.shadow.camera.bottom = -10;
+key.shadow.camera.near = 1; key.shadow.camera.far = 40;
+key.shadow.bias = -0.0004;
+key.shadow.normalBias = 0.02;
+key.shadow.radius = 4;
+scene.add(key);
+key.target.position.set(4, 0, 0);
+scene.add(key.target);
+
+const groundMat = new THREE.ShadowMaterial({ opacity: 0.24 });
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+/* ---------- textures & materials ---------- */
+function makeFabricTexture() {
+  const N = 256, c = document.createElement('canvas');
+  c.width = c.height = N;
+  const g = c.getContext('2d');
+  const img = g.createImageData(N, N);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const i = (y * N + x) * 4;
+    let v = 120 + (Math.random() - 0.5) * 30;
+    v += ((x >> 1) & 1) ? 7 : -7;            // weave
+    v += ((y >> 1) & 1) ? 5 : -5;
+    if (x % 32 < 2 || y % 32 < 2) v += 46;   // ripstop grid
+    img.data[i] = img.data[i + 1] = img.data[i + 2] = clamp(v, 0, 255);
+    img.data[i + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = 4;
+  return t;
+}
+const fabricBump = makeFabricTexture();
+
+let colorway = COLORWAYS[0];
+function makeFabricMat(hex) {
+  return new THREE.MeshPhysicalMaterial({
+    color: hex, roughness: 0.86, metalness: 0,
+    sheen: 1, sheenRoughness: 0.55, sheenColor: new THREE.Color(hex).lerp(new THREE.Color('#ffffff'), 0.35),
+    bumpMap: fabricBump, bumpScale: 1.4,
+    emissive: new THREE.Color(hex), emissiveIntensity: 0,
+  });
+}
+const MAT = {
+  liner: new THREE.MeshStandardMaterial({ color: '#C8D0CD', roughness: 0.92, side: THREE.BackSide, bumpMap: fabricBump, bumpScale: 0.8 }),
+  tape: new THREE.MeshStandardMaterial({ color: '#1C2121', roughness: 0.7, side: THREE.DoubleSide }),
+  teeth: new THREE.MeshStandardMaterial({ color: '#2B3131', roughness: 0.35, metalness: 0.5 }),
+  accent: new THREE.MeshStandardMaterial({ color: ACCENT, roughness: 0.45 }),
+  dark: new THREE.MeshStandardMaterial({ color: '#202525', roughness: 0.55, metalness: 0.15 }),
+  slit: new THREE.MeshBasicMaterial({ color: '#0B0D0D' }),
+};
+
+/* ---------- geometry helpers ---------- */
+// Rounded-rectangle footprint in XZ. Arc-length parameter s starts at back-centre (z = -d/2) and runs
+// toward +x: back-right corner, right side, front, left side, back-left corner, back to centre.
+function makeRR(w, d, R) {
+  const sx = w - 2 * R, sz = d - 2 * R, q = Math.PI * R / 2;
+  const segs = [
+    { type: 'line', len: sx / 2, p0: [0, -d / 2], dir: [1, 0], n: [0, -1] },
+    { type: 'arc', len: q, c: [w / 2 - R, -d / 2 + R], a0: -Math.PI / 2 },
+    { type: 'line', len: sz, p0: [w / 2, -d / 2 + R], dir: [0, 1], n: [1, 0] },
+    { type: 'arc', len: q, c: [w / 2 - R, d / 2 - R], a0: 0 },
+    { type: 'line', len: sx, p0: [w / 2 - R, d / 2], dir: [-1, 0], n: [0, 1] },
+    { type: 'arc', len: q, c: [-w / 2 + R, d / 2 - R], a0: Math.PI / 2 },
+    { type: 'line', len: sz, p0: [-w / 2, d / 2 - R], dir: [0, -1], n: [-1, 0] },
+    { type: 'arc', len: q, c: [-w / 2 + R, -d / 2 + R], a0: Math.PI },
+    { type: 'line', len: sx / 2, p0: [-w / 2 + R, -d / 2], dir: [1, 0], n: [0, -1] },
+  ];
+  let acc = 0;
+  for (const s of segs) { s.start = acc; acc += s.len; }
+  const P = acc;
+  function at(s) {
+    s = ((s % P) + P) % P;
+    let seg = segs[segs.length - 1];
+    for (const g of segs) if (s >= g.start && s < g.start + g.len) { seg = g; break; }
+    const t = s - seg.start;
+    if (seg.type === 'line') {
+      return { x: seg.p0[0] + seg.dir[0] * t, z: seg.p0[1] + seg.dir[1] * t, nx: seg.n[0], nz: seg.n[1], tx: seg.dir[0], tz: seg.dir[1] };
+    }
+    const a = seg.a0 + t / R, ca = Math.cos(a), sa = Math.sin(a);
+    return { x: seg.c[0] + R * ca, z: seg.c[1] + R * sa, nx: ca, nz: sa, tx: -sa, tz: ca };
+  }
+  function samples(step = 0.12, arcN = 10) {
+    const out = [];
+    for (const g of segs) {
+      if (g.len <= 1e-6) continue;
+      const k = g.type === 'arc' ? arcN : Math.max(1, Math.ceil(g.len / step));
+      for (let i = 0; i < k; i++) out.push(g.start + (i / k) * g.len);
+    }
+    return out;
+  }
+  return { P, at, samples, segs, w, d, R };
+}
+
+// A soft "cup": rounded-rectangle floor + rounded bottom edge + straight walls, open on top.
+// flip=true mirrors it into a lid whose closed face sits at y = top.
+function cupGeometry(w, d, H, R, r, { flip = false, top = H, y0 = 0 } = {}) {
+  const rr = makeRR(w, d, R);
+  const sv = rr.samples(0.12, 10);
+  const cols = sv.length;
+  const prof = [];
+  const Nc = 9;
+  for (let j = 0; j <= Nc; j++) prof.push({ k: j / Nc, o: 0, y: 0, part: 'cap' });
+  const Na = 7;
+  for (let j = 1; j <= Na; j++) {
+    const a = -Math.PI / 2 + (j / Na) * (Math.PI / 2);
+    prof.push({ k: 1, o: r * Math.cos(a), y: r + r * Math.sin(a), part: 'arc', f: j / Na });
+  }
+  const Nw = Math.max(2, Math.ceil((H - r) / 0.09));
+  for (let j = 1; j <= Nw; j++) prof.push({ k: 1, o: r, y: r + (H - r) * j / Nw, part: 'wall' });
+  const rows = prof.length, C = cols + 1;
+  const rMean = (w + d) / 4;
+  const pos = new Float32Array(rows * C * 3), uv = new Float32Array(rows * C * 2);
+  for (let j = 0; j < rows; j++) {
+    const p = prof[j];
+    for (let i = 0; i < C; i++) {
+      const s = i < cols ? sv[i] : rr.P;
+      const pt = rr.at(i < cols ? s : 0);
+      const ix = pt.x - pt.nx * r, iz = pt.z - pt.nz * r;
+      const x = ix * p.k + pt.nx * p.o, z = iz * p.k + pt.nz * p.o;
+      const y = flip ? top - p.y : y0 + p.y;
+      const o = (j * C + i) * 3;
+      pos[o] = x; pos[o + 1] = y; pos[o + 2] = z;
+      const rad = Math.hypot(ix, iz);
+      let u, v;
+      if (p.part === 'cap') { u = s * p.k; v = rad * p.k; }
+      else if (p.part === 'arc') { u = s; v = lerp(rad, rMean + p.y, p.f); }
+      else { u = s; v = rMean + p.y; }
+      uv[(j * C + i) * 2] = u / TILE; uv[(j * C + i) * 2 + 1] = v / TILE;
+    }
+  }
+  const idx = [];
+  for (let j = 0; j < rows - 1; j++) for (let i = 0; i < cols; i++) {
+    const a = j * C + i, b = a + 1, c = a + C, dd = c + 1;
+    if (!flip) idx.push(a, c, b, b, c, dd); else idx.push(a, b, c, b, dd, c);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  const seam = [];
+  for (let j = 0; j < rows; j++) seam.push(j * C, j * C + cols);
+  g.userData.seam = seam;
+  fixSeam(g, seam);
+  return g;
+}
+function fixSeam(g, seam) {
+  if (!seam) return;
+  const n = g.attributes.normal.array;
+  for (let k = 0; k < seam.length; k += 2) {
+    const a = seam[k] * 3, b = seam[k + 1] * 3;
+    let x = n[a] + n[b], y = n[a + 1] + n[b + 1], z = n[a + 2] + n[b + 2];
+    const l = Math.hypot(x, y, z) || 1; x /= l; y /= l; z /= l;
+    n[a] = n[b] = x; n[a + 1] = n[b + 1] = y; n[a + 2] = n[b + 2] = z;
+  }
+  g.attributes.normal.needsUpdate = true;
+}
+// Round piping that follows the footprint at a fixed height.
+function rimTube(rr, y, inset, radius, radial = 8) {
+  const sv = rr.samples(0.1, 10);
+  const cols = sv.length, C = cols + 1;
+  const pos = new Float32Array(C * (radial + 1) * 3), nor = new Float32Array(C * (radial + 1) * 3);
+  for (let i = 0; i < C; i++) {
+    const pt = rr.at(i < cols ? sv[i] : 0);
+    const cx = pt.x - pt.nx * inset, cz = pt.z - pt.nz * inset;
+    for (let k = 0; k <= radial; k++) {
+      const a = (k / radial) * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a);
+      const o = (i * (radial + 1) + k) * 3;
+      nor[o] = pt.nx * ca; nor[o + 1] = sa; nor[o + 2] = pt.nz * ca;
+      pos[o] = cx + nor[o] * radius; pos[o + 1] = y + sa * radius; pos[o + 2] = cz + nor[o + 2] * radius;
+    }
+  }
+  const idx = [];
+  for (let i = 0; i < cols; i++) for (let k = 0; k < radial; k++) {
+    const a = i * (radial + 1) + k, b = a + 1, c = a + radial + 1, d = c + 1;
+    idx.push(a, b, c, b, d, c);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+  g.setIndex(idx);
+  return g;
+}
+function makeValve() {
+  const g = new THREE.Group();
+  const flange = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.185, 0.022, 40), MAT.tape);
+  flange.position.y = 0.011;
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.118, 0.022, 12, 40), MAT.dark);
+  ring.rotation.x = Math.PI / 2; ring.position.y = 0.032;
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.09, 0.036, 32), MAT.accent);
+  cap.position.y = 0.04;
+  g.add(flange, ring, cap);
+  g.userData.cap = cap;
+  return g;
+}
+function makeSlider() {
+  // local axes: x = along zipper, y = "up" (pull hangs toward -y), z = outward
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new RoundedBoxGeometry(0.13, 0.08, 0.05, 2, 0.016), MAT.teeth);
+  body.position.z = 0.012;
+  const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.05, 0.025), MAT.teeth);
+  bridge.position.set(0, -0.02, 0.045);
+  const pull = new THREE.Mesh(new RoundedBoxGeometry(0.065, 0.17, 0.016, 2, 0.007), MAT.accent);
+  pull.position.set(0, -0.1, 0.06);
+  pull.rotation.x = 0.28;
+  g.add(body, bridge, pull);
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  return g;
+}
+function makeLabelTexture(big, small, fg = '#F2F0EA') {
+  const c = document.createElement('canvas');
+  c.width = 256; c.height = 128;
+  const g = c.getContext('2d');
+  g.fillStyle = '#1B1F1F';
+  g.beginPath(); g.roundRect(4, 4, 248, 120, 18); g.fill();
+  g.fillStyle = ACCENT; g.fillRect(4, 100, 248, 8);
+  g.fillStyle = fg;
+  g.font = '800 64px Archivo, Arial, sans-serif';
+  g.textBaseline = 'middle';
+  g.fillText(big, 22, 54);
+  const bw = g.measureText(big).width;
+  g.font = '600 22px "JetBrains Mono", monospace';
+  g.fillStyle = '#AFB7B4';
+  g.fillText(small, 22 + bw + 14, 58);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return t;
+}
+
+/* =====================================================================
+   PACKING CUBE
+   ===================================================================== */
+const tmpV = new THREE.Vector3(), tmpV2 = new THREE.Vector3(), tmpM = new THREE.Matrix4(), tmpQ = new THREE.Quaternion();
+const UP = new THREE.Vector3(0, 1, 0);
+
+class PackCube {
+  constructor(spec) {
+    this.spec = spec;
+    this.id = spec.id;
+    this.group = new THREE.Group();
+    this.group.position.set(...spec.pos);
+    this.group.userData.cube = this;
+    this.home = { pos: this.group.position.clone(), rotY: 0 };
+    this.state = { zip: 1, lid: 0, comp: 0, pack: 1 };
+    this.deformables = [];
+    this.attachments = [];
+    this.teethRows = [];
+    this.liners = [];
+    this.fabric = makeFabricMat(colorway.fabric);
+    this.dirty = true;
+    this.wrinkle = 1;
+    if (spec.kind === 'rect') this.buildRect(); else this.buildCyl();
+    this.group.traverse(o => { if (o.isMesh) o.userData.cubeId = this.id; });
+    this.update(true);
+  }
+  set(patch) { Object.assign(this.state, patch); this.dirty = true; }
+
+  addDeformable(mesh, offset = null, normals = true) {
+    const geo = mesh.geometry;
+    this.deformables.push({ mesh, rest: geo.attributes.position.array.slice(), offset, normals, seam: geo.userData.seam, atRest: true });
+  }
+  addAttachment(obj, restPos, parentOffset = null) {
+    this.attachments.push({ obj, rest: restPos.clone(), offset: parentOffset });
+  }
+
+  // Compression field: squash toward the floor, pull the sides in a touch, and crumple the fabric.
+  deformPoint(x, y, z, out) {
+    const t = this.state.comp;
+    if (t <= 0) return out.set(x, y, z);
+    const s = 1 - (1 - S_MIN) * t;
+    const A = 0.06 * t * this.wrinkle;
+    const hN = clamp(y / this.H, 0, 1);
+    const f1 = Math.sin(x * 6.3 + Math.sin(z * 4.1) * 2.0) * Math.cos(z * 5.7 - x * 1.3);
+    const f2 = Math.sin(z * 8.1 + x * 3.2 + y * 5.0);
+    const f3 = Math.sin(y * 12.0 + z * 6.0) * Math.cos(x * 4.0);
+    const f4 = Math.sin(y * 11.0 - x * 5.0) * Math.cos(z * 4.5);
+    const side = Math.sin(hN * Math.PI);  // bulge/crease strongest mid-wall
+    out.x = x * (1 - this.shrinkX * t) + A * 0.55 * f3 * side;
+    out.y = y * s + A * (0.7 * f1 + 0.3 * f2) * hN;
+    out.z = z * (1 + this.growZ * t) + A * 0.55 * f4 * side;
+    return out;
+  }
+  valveLocal(out) {  // deformed valve point + its outward normal, in group space
+    this.deformPoint(this.valveRest.x, this.valveRest.y, this.valveRest.z, out);
+    return out;
+  }
+  volumeFactor() {
+    const t = this.state.comp, s = 1 - (1 - S_MIN) * t;
+    return s * (1 - this.shrinkX * t) * (1 + this.growZ * t);
+  }
+
+  /* ---------------- rectangular cube ---------------- */
+  buildRect() {
+    const { w, h, d } = this.spec;
+    const R = Math.min(0.4, Math.min(w, d) * 0.16), r = Math.min(0.15, h * 0.14);
+    const Hb = h * 0.6, Hl = h - Hb, th = 0.025;
+    this.H = h; this.Hb = Hb; this.shrinkX = 0.035; this.growZ = -0.035;
+    const rr = this.rr = makeRR(w, d, R);
+    const g = this.group;
+
+    const base = new THREE.Mesh(cupGeometry(w, d, Hb, R, r), this.fabric);
+    base.castShadow = base.receiveShadow = true;
+    g.add(base); this.addDeformable(base);
+    const baseLiner = new THREE.Mesh(cupGeometry(w - 2 * th, d - 2 * th, Hb - th, R - th, r * 0.7, { y0: th }), MAT.liner);
+    g.add(baseLiner); this.liners.push(baseLiner);
+
+    const pivotOff = new THREE.Vector3(0, Hb, -d / 2);
+    this.lidPivot = new THREE.Group();
+    this.lidPivot.position.copy(pivotOff);
+    g.add(this.lidPivot);
+    const lidGeo = cupGeometry(w, d, Hl, R, r, { flip: true, top: h });
+    lidGeo.translate(0, -Hb, d / 2);
+    const lid = new THREE.Mesh(lidGeo, this.fabric);
+    lid.castShadow = lid.receiveShadow = true;
+    this.lidPivot.add(lid); this.addDeformable(lid, pivotOff);
+    const lidLinerGeo = cupGeometry(w - 2 * th, d - 2 * th, Hl - th, R - th, r * 0.7, { flip: true, top: h - th });
+    lidLinerGeo.translate(0, -Hb, d / 2);
+    const lidLiner = new THREE.Mesh(lidLinerGeo, MAT.liner);
+    this.lidPivot.add(lidLiner); this.liners.push(lidLiner);
+
+    // piping on both rims (hides the shell edge, reads as zipper tape)
+    const bb = new THREE.Mesh(rimTube(rr, Hb - 0.015, th / 2, 0.03), MAT.tape);
+    bb.castShadow = true; g.add(bb); this.addDeformable(bb, null, false);
+    const lbGeo = rimTube(rr, Hb + 0.015, th / 2, 0.03); lbGeo.translate(0, -Hb, d / 2);
+    const lb = new THREE.Mesh(lbGeo, MAT.tape);
+    lb.castShadow = true; this.lidPivot.add(lb); this.addDeformable(lb, pivotOff, false);
+    // bottom piping for a sewn look
+    const bot = new THREE.Mesh(rimTube(makeRR(w - 0.02, d - 0.02, R - 0.01), r * 0.55, th, 0.018, 6), MAT.tape);
+    g.add(bot); this.addDeformable(bot, null, false);
+
+    // 3-sided zipper: runs from the back-right corner, around the front, to the back-left corner.
+    this.sA = rr.segs[1].start + 0.03;
+    this.sB = rr.segs[8].start - 0.03;
+    this.sMid = rr.segs[4].start + rr.segs[4].len / 2;
+    const toothGeo = new THREE.BoxGeometry(0.024, 0.02, 0.032);
+    const rows = [{ parent: g, offset: null, dy: -0.006, list: [] }, { parent: this.lidPivot, offset: pivotOff, dy: 0.006, list: [] }];
+    let k = 0;
+    for (let s = this.sA; s <= this.sB; s += 0.036, k++) {
+      const pt = rr.at(s), row = rows[k % 2];
+      const basis = new THREE.Matrix4().makeBasis(new THREE.Vector3(-pt.tx, 0, -pt.tz), UP, new THREE.Vector3(pt.nx, 0, pt.nz));
+      row.list.push({ pos: new THREE.Vector3(pt.x + pt.nx * 0.026, Hb + row.dy, pt.z + pt.nz * 0.026), basis });
+    }
+    for (const row of rows) {
+      const im = new THREE.InstancedMesh(toothGeo, MAT.teeth, row.list.length);
+      row.parent.add(im);
+      this.teethRows.push({ im, list: row.list, offset: row.offset });
+    }
+
+    // two sliders that meet at the front when closed
+    this.sliders = [makeSlider(), makeSlider()];
+    this.sliders.forEach(sl => g.add(sl));
+
+    // pump valve on the lid, near the front-right corner
+    this.valveRest = new THREE.Vector3(w / 2 - 0.5, h, d / 2 - 0.48);
+    this.valveNormal = new THREE.Vector3(0, 1, 0);
+    this.valve = makeValve();
+    this.lidPivot.add(this.valve);
+    this.addAttachment(this.valve, this.valveRest, pivotOff);
+
+    // grab strap on the right side + woven size label on the front
+    const strap = new THREE.Mesh(new RoundedBoxGeometry(0.04, 0.12, 0.6, 2, 0.015), MAT.tape);
+    g.add(strap); strap.castShadow = true;
+    this.addAttachment(strap, new THREE.Vector3(w / 2 + 0.02, Hb * 0.55, 0));
+    const lbl = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.31),
+      new THREE.MeshStandardMaterial({ map: makeLabelTexture(this.id, this.spec.dims.split(' cm')[0].replace(/ /g, '')), roughness: 0.8, transparent: true }));
+    g.add(lbl);
+    this.addAttachment(lbl, new THREE.Vector3(-w / 2 + 0.75, Hb * 0.5, d / 2 + 0.004));
+
+    // clothes (only visible while the lid is open)
+    this.clothes = [];
+    const n = this.spec.clothes.length, iw = w - 0.3, id = d - 0.3, total = h * 0.86, gh = total / n - 0.012;
+    this.spec.clothes.forEach((col, i) => {
+      const m = new THREE.Mesh(new RoundedBoxGeometry(iw - i * 0.06, gh, id - i * 0.05, 3, Math.min(0.06, gh * 0.4)),
+        new THREE.MeshStandardMaterial({ color: col, roughness: 0.95, bumpMap: fabricBump, bumpScale: 0.6 }));
+      m.castShadow = m.receiveShadow = true;
+      m.userData.restY = th + gh / 2 + i * (gh + 0.012);
+      g.add(m); this.clothes.push(m);
+    });
+
+    // hotspots
+    this.hotspots = [
+      this.makeHot('3-sided zipper, hinged at back', new THREE.Vector3(w / 2 + 0.05, Hb, d * 0.15)),
+      this.makeHot('Pump port (one-way valve)', new THREE.Vector3(0, 0.1, 0), this.valve),
+    ];
+  }
+
+  /* ---------------- cylinder ---------------- */
+  buildCyl() {
+    const L = this.spec.len, Rc = this.spec.dia / 2, rc = 0.17;
+    this.H = 2 * Rc; this.Rc = Rc; this.L = L;
+    this.shrinkX = 0.02; this.growZ = 0.05; this.wrinkle = 0.85;
+    const g = this.group;
+    const pts = [];
+    const capN = 5, arcN = 8;
+    for (let i = 0; i < capN; i++) pts.push(new THREE.Vector2((Rc - rc) * i / capN, -L / 2));
+    for (let i = 0; i <= arcN; i++) { const a = -Math.PI / 2 + (i / arcN) * Math.PI / 2; pts.push(new THREE.Vector2(Rc - rc + rc * Math.cos(a), -L / 2 + rc + rc * Math.sin(a))); }
+    const sideN = Math.ceil((L - 2 * rc) / 0.09);
+    for (let i = 1; i < sideN; i++) pts.push(new THREE.Vector2(Rc, -L / 2 + rc + (L - 2 * rc) * i / sideN));
+    for (let i = 0; i <= arcN; i++) { const a = (i / arcN) * Math.PI / 2; pts.push(new THREE.Vector2(Rc - rc + rc * Math.cos(a), L / 2 - rc + rc * Math.sin(a))); }
+    for (let i = capN - 1; i >= 0; i--) pts.push(new THREE.Vector2((Rc - rc) * i / capN, L / 2));
+    const segs = 56;
+    const geo = new THREE.LatheGeometry(pts, segs);
+    const uv = geo.attributes.uv.array;
+    let plen = 0; for (let i = 1; i < pts.length; i++) plen += pts[i].distanceTo(pts[i - 1]);
+    for (let i = 0; i < uv.length; i += 2) { uv[i] *= (2 * Math.PI * Rc) / TILE; uv[i + 1] *= plen / TILE; }
+    geo.rotateZ(-Math.PI / 2);
+    geo.translate(0, Rc, 0);
+    geo.computeVertexNormals();
+    const seam = []; for (let j = 0; j < pts.length; j++) seam.push(j, segs * pts.length + j);
+    geo.userData.seam = seam; fixSeam(geo, seam);
+    const body = new THREE.Mesh(geo, this.fabric);
+    body.castShadow = body.receiveShadow = true;
+    g.add(body); this.addDeformable(body);
+
+    // end piping
+    for (const sgn of [-1, 1]) {
+      const rad = Rc - rc * 0.293, ax = L / 2 - rc * 0.293;
+      const tg = new THREE.TorusGeometry(rad, 0.022, 8, 56);
+      tg.rotateY(Math.PI / 2); tg.translate(sgn * ax, Rc, 0);
+      const tm = new THREE.Mesh(tg, MAT.tape);
+      g.add(tm); this.addDeformable(tm, null, false);
+    }
+
+    // zipper along the long side (top)
+    const xa = -L / 2 + 0.32, xb = L / 2 - 0.32;
+    this.xa = xa; this.xb = xb;
+    const half = 0.05 / Rc;
+    const tapeGeo = new THREE.CylinderGeometry(Rc + 0.005, Rc + 0.005, xb - xa + 0.1, 16, 40, true, -Math.PI / 2 - half, 2 * half);
+    tapeGeo.rotateZ(-Math.PI / 2); tapeGeo.translate((xa + xb) / 2, Rc, 0);
+    const tape = new THREE.Mesh(tapeGeo, MAT.tape);
+    g.add(tape); this.addDeformable(tape);
+    // dark opening revealed while unzipped
+    const sh = 0.07 / Rc;
+    const slitGeo = new THREE.CylinderGeometry(Rc + 0.008, Rc + 0.008, 1, 12, 1, true, -Math.PI / 2 - sh, 2 * sh);
+    slitGeo.rotateZ(-Math.PI / 2); slitGeo.translate(0.5, 0, 0);
+    this.slit = new THREE.Mesh(slitGeo, MAT.slit);
+    this.slit.position.set(xa, Rc, 0);
+    g.add(this.slit);
+
+    const toothGeo = new THREE.BoxGeometry(0.024, 0.026, 0.03);
+    const rows = [{ sgn: -1, list: [] }, { sgn: 1, list: [] }];
+    let k = 0;
+    for (let x = xa; x <= xb; x += 0.036, k++) rows[k % 2].list.push({ x });
+    for (const row of rows) {
+      const im = new THREE.InstancedMesh(toothGeo, MAT.teeth, row.list.length);
+      g.add(im);
+      this.teethRows.push({ im, list: row.list, sgn: row.sgn, cyl: true });
+    }
+    this.sliders = [makeSlider()];
+    g.add(this.sliders[0]);
+
+    // valve on the end cap
+    this.valveRest = new THREE.Vector3(L / 2 + 0.002, Rc + 0.18, 0);
+    this.valveNormal = new THREE.Vector3(1, 0, 0);
+    this.valve = makeValve();
+    this.valve.quaternion.setFromUnitVectors(UP, this.valveNormal);
+    g.add(this.valve);
+    this.addAttachment(this.valve, this.valveRest);
+
+    // grab loop on the other end + label
+    const loop = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.022, 8, 20, Math.PI), MAT.tape);
+    loop.rotation.set(0, 0, Math.PI / 2);
+    g.add(loop);
+    this.addAttachment(loop, new THREE.Vector3(-L / 2 - 0.005, Rc + 0.05, 0));
+    const lbl = new THREE.Mesh(new THREE.PlaneGeometry(0.56, 0.28),
+      new THREE.MeshStandardMaterial({ map: makeLabelTexture('C', '30×Ø12'), roughness: 0.8, transparent: true }));
+    g.add(lbl);
+    this.addAttachment(lbl, new THREE.Vector3(-0.6, Rc * 0.95, Rc + 0.015));
+
+    // rolled clothes for the pack animation
+    this.clothes = [];
+    this.spec.clothes.forEach((col, i) => {
+      const cg = new THREE.CylinderGeometry(0.15, 0.15, 0.85, 24); cg.rotateZ(Math.PI / 2);
+      const m = new THREE.Mesh(cg, new THREE.MeshStandardMaterial({ color: col, roughness: 0.95, bumpMap: fabricBump, bumpScale: 0.6 }));
+      m.castShadow = true;
+      m.userData.x = -0.55 + i * 1.1;
+      g.add(m); this.clothes.push(m);
+    });
+
+    this.hotspots = [
+      this.makeHot('Full-length zipper on the long side', new THREE.Vector3(0.4, 2 * Rc + 0.08, 0)),
+      this.makeHot('Pump port on the end cap', new THREE.Vector3(0, 0.1, 0), this.valve),
+    ];
+  }
+
+  makeHot(text, pos, parent = this.group) {
+    const el = document.createElement('div');
+    el.className = 'hot3d';
+    el.innerHTML = `<span>${text}</span>`;
+    const o = new CSS2DObject(el);
+    o.center.set(0, 0.5);
+    o.position.copy(pos);
+    o.visible = false;
+    parent.add(o);
+    return o;
+  }
+
+  setColor(hex) {
+    this.fabric.color.set(hex);
+    this.fabric.emissive.set(hex);
+    this.fabric.sheenColor.set(hex).lerp(new THREE.Color('#ffffff'), 0.35);
+  }
+
+  update(force = false) {
+    if (!this.dirty && !force) return;
+    this.dirty = false;
+    const st = this.state, t = st.comp;
+    // vertex deformation
+    for (const d of this.deformables) {
+      if (t === 0 && d.atRest && !force) continue;
+      const arr = d.mesh.geometry.attributes.position.array, rest = d.rest;
+      const ox = d.offset ? d.offset.x : 0, oy = d.offset ? d.offset.y : 0, oz = d.offset ? d.offset.z : 0;
+      for (let i = 0; i < rest.length; i += 3) {
+        this.deformPoint(rest[i] + ox, rest[i + 1] + oy, rest[i + 2] + oz, tmpV);
+        arr[i] = tmpV.x - ox; arr[i + 1] = tmpV.y - oy; arr[i + 2] = tmpV.z - oz;
+      }
+      d.mesh.geometry.attributes.position.needsUpdate = true;
+      if (d.normals) { d.mesh.geometry.computeVertexNormals(); fixSeam(d.mesh.geometry, d.seam); }
+      d.mesh.geometry.computeBoundingSphere();
+      d.atRest = t === 0;
+    }
+    for (const a of this.attachments) {
+      this.deformPoint(a.rest.x, a.rest.y, a.rest.z, tmpV);
+      if (a.offset) tmpV.sub(a.offset);
+      a.obj.position.copy(tmpV);
+    }
+    if (this.spec.kind === 'rect') this.updateRect(); else this.updateCyl();
+  }
+
+  updateRect() {
+    const st = this.state, rr = this.rr;
+    this.lidPivot.rotation.x = -st.lid * 1.88;
+    // teeth
+    for (const row of this.teethRows) {
+      row.list.forEach((tooth, i) => {
+        this.deformPoint(tooth.pos.x, tooth.pos.y, tooth.pos.z, tmpV);
+        if (row.offset) tmpV.sub(row.offset);
+        tmpM.copy(tooth.basis).setPosition(tmpV);
+        row.im.setMatrixAt(i, tmpM);
+      });
+      row.im.instanceMatrix.needsUpdate = true;
+    }
+    // sliders: zip 1 = both at the front centre, zip 0 = at the back corners
+    const sPos = [lerp(this.sA, this.sMid - 0.07, st.zip), lerp(this.sB, this.sMid + 0.07, st.zip)];
+    this.sliders.forEach((sl, i) => {
+      const pt = rr.at(sPos[i]);
+      this.deformPoint(pt.x + pt.nx * 0.05, this.Hb, pt.z + pt.nz * 0.05, tmpV);
+      sl.position.copy(tmpV);
+      tmpM.makeBasis(tmpV2.set(-pt.tx, 0, -pt.tz), UP, new THREE.Vector3(pt.nx, 0, pt.nz));
+      sl.quaternion.setFromRotationMatrix(tmpM);
+    });
+    const open = st.lid > 0.002;
+    this.liners.forEach(l => (l.visible = open));
+    const n = this.clothes.length;
+    this.clothes.forEach((m, i) => {
+      const e = ease.bounce(clamp(st.pack * (1 + 0.45 * (n - 1)) - i * 0.45, 0, 1));
+      m.visible = open && e > 0;
+      m.position.y = m.userData.restY + (1 - e) * 2.6;
+      m.rotation.y = (1 - e) * 0.5 * (i % 2 ? 1 : -1);
+    });
+  }
+
+  updateCyl() {
+    const st = this.state, Rc = this.Rc;
+    const sx = lerp(this.xb, this.xa, st.zip);    // slider x; region x < sx is open
+    const openAmt = clamp((1 - st.zip) * 4);
+    for (const row of this.teethRows) {
+      row.list.forEach((tooth, i) => {
+        const behind = clamp((sx - tooth.x) / 0.25);
+        const zOff = row.sgn * (0.012 + 0.055 * behind * openAmt);
+        const y = Rc + Math.sqrt(Rc * Rc - zOff * zOff) + 0.008;
+        this.deformPoint(tooth.x, y, zOff, tmpV);
+        tmpM.makeRotationX(Math.asin(clamp(zOff / Rc, -1, 1))).setPosition(tmpV);
+        row.im.setMatrixAt(i, tmpM);
+      });
+      row.im.instanceMatrix.needsUpdate = true;
+    }
+    const sl = this.sliders[0];
+    this.deformPoint(sx, 2 * Rc + 0.035, 0, tmpV);
+    sl.position.copy(tmpV);
+    tmpM.makeBasis(tmpV2.set(1, 0, 0), new THREE.Vector3(0, 0, -1), UP);
+    sl.quaternion.setFromRotationMatrix(tmpM);
+    this.slit.visible = st.zip < 0.999 && st.comp === 0;
+    this.slit.scale.set(Math.max(0.001, sx - this.xa), 1, Math.max(0.05, openAmt));
+    // rolled clothes drop into the opening and disappear inside
+    this.clothes.forEach((m, i) => {
+      const e = clamp(st.pack * 1.5 - i * 0.5, 0, 1);
+      m.visible = e > 0 && e < 1;
+      m.position.set(m.userData.x, 2 * Rc + 0.1 + (1 - ease.out(e)) * 2.2, 0);
+      const sc = e < 0.75 ? 1 : 1 - (e - 0.75) / 0.25;
+      m.scale.set(sc, sc, sc);
+    });
+  }
+}
+
+/* =====================================================================
+   POCKET PUMP  (origin at the nozzle tip, +y = away from the valve)
+   ===================================================================== */
+function buildPump() {
+  const root = new THREE.Group();
+  const body = new THREE.Group();
+  root.add(body);
+  const shell = new THREE.MeshPhysicalMaterial({ color: '#E9ECEA', roughness: 0.42, clearcoat: 0.5, clearcoatRoughness: 0.4 });
+  const rubber = new THREE.MeshStandardMaterial({ color: '#191D1D', roughness: 0.92 });
+  const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.066, 0.15, 28), rubber);
+  nozzle.position.y = 0.075;
+  const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.08, 0.07, 36), rubber);
+  collar.position.y = 0.175;
+  const Rb = 0.34, y0 = 0.2, Hh = 0.66, rc = 0.11, top = y0 + Hh;
+  const pts = [new THREE.Vector2(0.001, y0)];
+  for (let i = 0; i <= 8; i++) { const a = -Math.PI / 2 + (i / 8) * Math.PI / 2; pts.push(new THREE.Vector2(Rb - rc + rc * Math.cos(a), y0 + rc + rc * Math.sin(a))); }
+  for (let i = 0; i <= 8; i++) { const a = (i / 8) * Math.PI / 2; pts.push(new THREE.Vector2(Rb - rc + rc * Math.cos(a), top - rc + rc * Math.sin(a))); }
+  const lip = Rb - rc - 0.025;
+  pts.push(new THREE.Vector2(lip, top), new THREE.Vector2(lip, top - 0.05));
+  const shellMesh = new THREE.Mesh(new THREE.LatheGeometry(pts, 64), shell);
+  shellMesh.castShadow = true;
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(lip, 48), MAT.dark);
+  floor.rotation.x = -Math.PI / 2; floor.position.y = top - 0.05;
+  // fan
+  const fan = new THREE.Group();
+  fan.position.y = top - 0.03;
+  const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.03, 24), MAT.dark);
+  fan.add(hub);
+  for (let i = 0; i < 7; i++) {
+    const b = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.006, 0.055), new THREE.MeshStandardMaterial({ color: '#59615F', roughness: 0.5 }));
+    const piv = new THREE.Group(); piv.rotation.y = (i / 7) * Math.PI * 2;
+    b.position.x = 0.12; b.rotation.x = 0.5;
+    piv.add(b); fan.add(piv);
+  }
+  // grille
+  const grille = new THREE.Group();
+  grille.position.y = top - 0.004;
+  const gring = new THREE.Mesh(new THREE.TorusGeometry(lip, 0.014, 8, 48), MAT.dark);
+  gring.rotation.x = Math.PI / 2;
+  grille.add(gring);
+  for (let i = 0; i < 4; i++) {
+    const sp = new THREE.Mesh(new THREE.BoxGeometry(lip * 2, 0.012, 0.012), MAT.dark);
+    sp.rotation.y = (i / 4) * Math.PI;
+    grille.add(sp);
+  }
+  const ring2 = new THREE.Mesh(new THREE.TorusGeometry(lip * 0.55, 0.009, 6, 40), MAT.dark);
+  ring2.rotation.x = Math.PI / 2;
+  grille.add(ring2);
+  const logo = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.016, 24), MAT.accent);
+  grille.add(logo);
+  // LED status ring, button, USB-C port
+  const ledMat = new THREE.MeshStandardMaterial({ color: '#0d1a14', emissive: '#4FA3FF', emissiveIntensity: 0.9 });
+  const led = new THREE.Mesh(new THREE.TorusGeometry(Rb + 0.001, 0.008, 6, 64), ledMat);
+  led.rotation.x = Math.PI / 2; led.position.y = top - 0.16;
+  const btn = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.03, 28), MAT.accent);
+  btn.rotation.x = Math.PI / 2; btn.position.set(0, y0 + Hh * 0.52, Rb + 0.004);
+  const port = new THREE.Mesh(new RoundedBoxGeometry(0.1, 0.035, 0.03, 2, 0.012), new THREE.MeshStandardMaterial({ color: '#0b0d0d', roughness: 0.4 }));
+  port.position.set(Rb - 0.006, y0 + 0.16, 0); port.rotation.y = Math.PI / 2;
+  // vent slots
+  for (let i = 0; i < 5; i++) {
+    const v = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.12, 0.02), MAT.dark);
+    const a = Math.PI + (i - 2) * 0.16;
+    v.position.set(Math.sin(a) * (Rb - 0.004), y0 + Hh * 0.5, Math.cos(a) * (Rb - 0.004));
+    v.rotation.y = a;
+    body.add(v);
+  }
+  body.add(nozzle, collar, shellMesh, floor, fan, grille, led, btn, port);
+  root.traverse(o => { if (o.isMesh) o.userData.cubeId = 'P'; });
+  root.userData = { body, fan, ledMat, top, running: false, spin: 0 };
+  return root;
+}
+
+/* =====================================================================
+   SUITCASE (for the finale)
+   ===================================================================== */
+function buildSuitcase() {
+  const W = 5.85, D = 4.05, Hb = 1.3, Hl = 1.0, R = 0.42, r = 0.3, th = 0.06;
+  const g = new THREE.Group();
+  const shellMat = new THREE.MeshPhysicalMaterial({ color: '#B9C4C7', roughness: 0.32, clearcoat: 0.9, clearcoatRoughness: 0.25 });
+  const linerMat = new THREE.MeshStandardMaterial({ color: '#56656B', roughness: 0.95, side: THREE.BackSide, bumpMap: fabricBump, bumpScale: 0.8 });
+  const base = new THREE.Mesh(cupGeometry(W, D, Hb, R, r), shellMat);
+  base.castShadow = base.receiveShadow = true;
+  const baseLiner = new THREE.Mesh(cupGeometry(W - 2 * th, D - 2 * th, Hb - th, R - th, r * 0.8, { y0: th }), linerMat);
+  baseLiner.receiveShadow = true;
+  g.add(base, baseLiner);
+  const rr = makeRR(W, D, R);
+  g.add(new THREE.Mesh(rimTube(rr, Hb - 0.02, th / 2, 0.045), MAT.tape));
+  const lidPivot = new THREE.Group();
+  lidPivot.position.set(0, Hb, -D / 2);
+  g.add(lidPivot);
+  const lg = cupGeometry(W, D, Hl, R, r, { flip: true, top: Hb + Hl }); lg.translate(0, -Hb, D / 2);
+  const lid = new THREE.Mesh(lg, shellMat); lid.castShadow = true;
+  const llg = cupGeometry(W - 2 * th, D - 2 * th, Hl - th, R - th, r * 0.8, { flip: true, top: Hb + Hl - th }); llg.translate(0, -Hb, D / 2);
+  const lidLiner = new THREE.Mesh(llg, linerMat);
+  const ltg = rimTube(rr, Hb + 0.02, th / 2, 0.045); ltg.translate(0, -Hb, D / 2);
+  lidPivot.add(lid, lidLiner, new THREE.Mesh(ltg, MAT.tape));
+  for (const z of [-1.1, 0, 1.1]) {   // ribs on the lid
+    const rib = new THREE.Mesh(new RoundedBoxGeometry(W - 1.1, 0.05, 0.24, 2, 0.02), shellMat);
+    rib.position.set(0, Hl + 0.02, z + D / 2);
+    lidPivot.add(rib);
+  }
+  // spinner wheels on the -x end (two per half), grab handle on the +x end
+  const wheelMat = new THREE.MeshStandardMaterial({ color: '#111', roughness: 0.8 });
+  const wheelAt = (parent, y, z) => {
+    const holder = new THREE.Group();
+    const housing = new THREE.Mesh(new RoundedBoxGeometry(0.22, 0.5, 0.5, 2, 0.08), MAT.dark);
+    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.12, 24), wheelMat);
+    wheel.rotation.z = Math.PI / 2; wheel.position.x = -0.16;
+    holder.add(housing, wheel);
+    holder.position.set(-W / 2 - 0.08, y, z);
+    parent.add(holder);
+  };
+  for (const z of [-D / 2 + 0.45, D / 2 - 0.45]) {
+    wheelAt(g, Hb * 0.45, z);
+    wheelAt(lidPivot, Hl * 0.55, z + D / 2);
+  }
+  const hcurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(W / 2 - 0.02, 0.62, -0.55), new THREE.Vector3(W / 2 + 0.16, 0.66, -0.4),
+    new THREE.Vector3(W / 2 + 0.2, 0.68, 0), new THREE.Vector3(W / 2 + 0.16, 0.66, 0.4), new THREE.Vector3(W / 2 - 0.02, 0.62, 0.55)]);
+  g.add(new THREE.Mesh(new THREE.TubeGeometry(hcurve, 30, 0.05, 10), MAT.dark));
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  g.userData = { lidPivot, W, D, Hb, th };
+  return g;
+}
+
+/* =====================================================================
+   BUILD THE SCENE
+   ===================================================================== */
+const cubes = {};
+for (const spec of CUBES) {
+  const c = new PackCube(spec);
+  cubes[spec.id] = c;
+  scene.add(c.group);
+}
+const pump = buildPump();
+pump.position.copy(PUMP_DOCK);
+scene.add(pump);
+const pumpState = { attachedTo: null, battery: 100 };
+// charging puck for the pump's home spot
+const puck = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.47, 0.035, 48), new THREE.MeshStandardMaterial({ color: '#2A3030', roughness: 0.6 }));
+puck.position.copy(PUMP_DOCK).setY(0.0175);
+puck.receiveShadow = true;
+scene.add(puck);
+pump.position.y = 0.035;
+
+const suitcase = buildSuitcase();
+suitcase.position.copy(SUITCASE_AT);
+suitcase.scale.setScalar(0.001);
+suitcase.visible = false;
+scene.add(suitcase);
+
+// floating name tags
+const nameTags = {};
+function makeNameTag(id, text, sub, pos, parent) {
+  const el = document.createElement('button');
+  el.className = 'tag3d';
+  el.type = 'button';
+  el.innerHTML = `<b>${id === 'P' ? '' : id}</b>${text}<small>${sub}</small>`;
+  el.addEventListener('click', ev => { ev.stopPropagation(); select(id); });
+  const o = new CSS2DObject(el);
+  o.position.copy(pos);
+  parent.add(o);
+  nameTags[id] = o;
+}
+for (const c of Object.values(cubes)) {
+  const h = c.H;
+  makeNameTag(c.id, c.spec.name, c.spec.kind === 'cyl' ? '30×Ø12' : c.spec.dims.replace(' cm', '').replace(/ /g, ''), new THREE.Vector3(0, h + 0.45, 0), c.group);
+}
+makeNameTag('P', 'Pocket pump', 'USB-C', new THREE.Vector3(0, 1.25, 0), pump);
+
+/* ---------- particles (air leaving through the pump) ---------- */
+const MAXP = reduceMotion ? 160 : 520;
+const pGeo = new THREE.BufferGeometry();
+const pPos = new Float32Array(MAXP * 3), pCol = new Float32Array(MAXP * 4);
+pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+pGeo.setAttribute('color', new THREE.BufferAttribute(pCol, 4));
+function dotTexture() {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const g = c.getContext('2d');
+  const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.4, 'rgba(255,255,255,0.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(c);
+}
+const pMat = new THREE.PointsMaterial({ size: 0.11, map: dotTexture(), vertexColors: true, transparent: true, depthWrite: false });
+const points = new THREE.Points(pGeo, pMat);
+points.frustumCulled = false;
+scene.add(points);
+const parts = Array.from({ length: MAXP }, () => ({ alive: false, p: new THREE.Vector3(), v: new THREE.Vector3(), life: 0, max: 1, kind: 0, target: null }));
+let airColor = new THREE.Color('#2F86C8');
+let emitAcc = 0;
+function spawn(kind, pos, vel, max, target = null) {
+  const pt = parts.find(q => !q.alive);
+  if (!pt) return;
+  pt.alive = true; pt.kind = kind; pt.p.copy(pos); pt.v.copy(vel); pt.life = 0; pt.max = max; pt.target = target;
+}
+const _a = new THREE.Vector3(), _b = new THREE.Vector3();
+function updateParticles(dt) {
+  const pu = pump.userData;
+  if (pu.running && !paused) {
+    emitAcc += (reduceMotion ? 40 : 140) * dt;
+    const n = Math.floor(emitAcc);
+    emitAcc -= n;
+    pump.updateMatrixWorld();
+    const axis = _a.set(0, 1, 0).applyQuaternion(pump.quaternion);
+    for (let i = 0; i < n; i++) {
+      // exhaust out of the top grille
+      const p = _b.set((Math.random() - 0.5) * 0.4, pu.top, (Math.random() - 0.5) * 0.4).applyMatrix4(pump.matrixWorld);
+      const v = axis.clone().multiplyScalar(1.4 + Math.random() * 1.2).add(new THREE.Vector3((Math.random() - 0.5) * 0.6, (Math.random() - 0.2) * 0.4, (Math.random() - 0.5) * 0.6));
+      spawn(0, p, v, 0.9 + Math.random() * 0.6);
+    }
+    // intake: air drawn across the cube toward the valve
+    const c = pumpState.attachedTo;
+    if (c && Math.random() < 0.8) {
+      const target = pump.position.clone();
+      const top = c.H * (1 - (1 - S_MIN) * c.state.comp) + 0.08;
+      const local = c.spec.kind === 'rect'
+        ? new THREE.Vector3((Math.random() - 0.5) * c.spec.w * 0.9, top, (Math.random() - 0.5) * c.spec.d * 0.9)
+        : new THREE.Vector3((Math.random() - 0.5) * c.L * 0.9, top, (Math.random() - 0.5) * 0.5);
+      const p = c.group.localToWorld(local);
+      spawn(1, p, new THREE.Vector3(), 1.4, target);
+    }
+  }
+  let any = false;
+  for (let i = 0; i < MAXP; i++) {
+    const q = parts[i];
+    if (q.alive && !paused) {
+      q.life += dt;
+      if (q.kind === 1 && q.target) {
+        _a.subVectors(q.target, q.p);
+        const dist = _a.length();
+        q.v.lerp(_a.normalize().multiplyScalar(0.6 + 2.5 * (q.life / q.max)), 0.12);
+        if (dist < 0.15) q.life = q.max;
+      } else {
+        q.v.multiplyScalar(1 - 1.2 * dt);
+      }
+      q.p.addScaledVector(q.v, dt);
+      if (q.life >= q.max) q.alive = false;
+    }
+    const a = q.alive ? Math.sin(Math.PI * clamp(q.life / q.max)) * (q.kind === 1 ? 0.55 : 0.85) : 0;
+    pPos[i * 3] = q.p.x; pPos[i * 3 + 1] = q.p.y; pPos[i * 3 + 2] = q.p.z;
+    pCol[i * 4] = airColor.r; pCol[i * 4 + 1] = airColor.g; pCol[i * 4 + 2] = airColor.b; pCol[i * 4 + 3] = a;
+    if (q.alive) any = true;
+  }
+  points.visible = any;
+  pGeo.attributes.position.needsUpdate = true;
+  pGeo.attributes.color.needsUpdate = true;
+}
+
+/* =====================================================================
+   CAMERA
+   ===================================================================== */
+let viewInset = { right: 0, bottom: 0 };
+function frameDistance(radius) {
+  const vfov = camera.fov * DEG;
+  const hfov = 2 * Math.atan(Math.tan(vfov / 2) * camera.aspect);
+  return radius / Math.sin(Math.min(vfov, hfov) / 2);
+}
+let camTween = null;
+function flyTo(target, dir, radius, dur = 1.3) {
+  const toTarget = target.clone();
+  const toPos = target.clone().add(dir.clone().normalize().multiplyScalar(frameDistance(radius)));
+  const fromPos = camera.position.clone(), fromTarget = controls.target.clone();
+  if (camTween) camTween.stop = true;   // a new flight always wins over an older one
+  camTween = { stop: false };
+  const me = camTween;
+  return tween(dur, k => {
+    if (me.stop) return;
+    camera.position.lerpVectors(fromPos, toPos, k);
+    controls.target.lerpVectors(fromTarget, toTarget, k);
+  }, ease.inOut);
+}
+controls.addEventListener('start', () => { if (camTween) camTween.stop = true; controls.autoRotate = false; });
+const VIEW_DIR = new THREE.Vector3(0.18, 0.62, 0.78);
+function overview(dur) { return flyTo(new THREE.Vector3(-0.3, 0.3, 0.3), VIEW_DIR, 5.0, dur); }
+function focusCube(c, dur, extra = 0) {
+  const ctr = c.group.position.clone().setY(c.H * 0.5);
+  const size = c.spec.kind === 'rect' ? Math.hypot(c.spec.w, c.spec.d) : c.L + 0.8;
+  return flyTo(ctr, new THREE.Vector3(0.35, 0.68, 0.85), size * 0.62 + 0.9 + extra, dur);
+}
+
+function resize() {
+  const W = stage.clientWidth, H = stage.clientHeight;
+  renderer.setSize(W, H, false);
+  labelRenderer.setSize(W, H);
+  const panel = document.getElementById('panel');
+  const phone = W <= 760;
+  let P = 0, B = 0;
+  if (!panel.hidden) {
+    const r = panel.getBoundingClientRect();
+    if (phone) B = Math.min(r.height, H * 0.4) * 0.85; else P = r.width + 16;
+  }
+  viewInset = { right: P, bottom: B };
+  camera.aspect = (W + P) / (H + B);
+  camera.setViewOffset(W + P, H + B, P, B, W, H);
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(stage);
+
+/* =====================================================================
+   PUMP MOTION
+   ===================================================================== */
+function pumpTargetFor(c, outPos, outQuat) {
+  c.group.updateMatrixWorld();
+  c.valveLocal(tmpV);
+  tmpV.addScaledVector(c.valveNormal, 0.058);
+  outPos.copy(tmpV).applyMatrix4(c.group.matrixWorld);
+  outQuat.setFromUnitVectors(UP, c.valveNormal).premultiply(c.group.quaternion);
+}
+function flyPump(toPos, toQuat, dur = 1.25, lift = 1.8) {
+  const fromPos = pump.position.clone(), fromQuat = pump.quaternion.clone();
+  const ctrl = fromPos.clone().lerp(toPos, 0.5);
+  ctrl.y = Math.max(fromPos.y, toPos.y) + lift;
+  return tween(dur, k => {
+    const a = fromPos.clone().lerp(ctrl, k), b = ctrl.clone().lerp(toPos, k);
+    pump.position.lerpVectors(a, b, k);
+    pump.quaternion.slerpQuaternions(fromQuat, toQuat, k);
+  }, ease.inOut);
+}
+async function attachPump(c, dur = 1.25) {
+  if (pumpState.attachedTo === c) return;
+  pumpState.attachedTo = null;
+  const p = new THREE.Vector3(), q = new THREE.Quaternion();
+  pumpTargetFor(c, p, q);
+  // approach along the valve normal: hover first, then seat
+  const hover = p.clone().add(c.valveNormal.clone().applyQuaternion(c.group.quaternion).multiplyScalar(0.55));
+  await flyPump(hover, q, dur);
+  await tween(0.35, k => pump.position.lerpVectors(hover, p, k), ease.out);
+  pumpState.attachedTo = c;
+  await tween(0.18, (k, raw) => pump.userData.body.scale.setScalar(1 + 0.05 * Math.sin(raw * Math.PI)), ease.linear);
+}
+async function dockPump(dur = 1.2) {
+  pumpState.attachedTo = null;
+  await flyPump(PUMP_DOCK.clone().setY(0.035), new THREE.Quaternion(), dur);
+}
+const hud = document.getElementById('hud');
+const hudVol = document.getElementById('hudVol'), hudVac = document.getElementById('hudVac'), hudBat = document.getElementById('hudBat'), hudBatBar = document.getElementById('hudBatBar');
+let hudCube = null;
+function showHud(c) { hudCube = c; hud.hidden = !c; }
+function updateHud() {
+  if (!hudCube) return;
+  const vf = hudCube.volumeFactor();
+  hudVol.textContent = `−${Math.round((1 - vf) * 100)}%`;
+  hudVac.textContent = `−${Math.round(hudCube.state.comp * 24)} kPa`;
+  hudBat.textContent = `${Math.round(pumpState.battery)}%`;
+  hudBatBar.style.width = `${pumpState.battery}%`;
+}
+async function runPump(c, dur = 3.4) {
+  const pu = pump.userData;
+  pu.running = true;
+  showHud(c);
+  const from = c.state.comp, bat0 = pumpState.battery;
+  await tween(dur, (k, raw) => {
+    c.set({ comp: lerp(from, 1, k) });
+    pumpState.battery = bat0 - 2.5 * raw;
+  }, ease.out);
+  pu.running = false;
+  await wait(0.5);
+}
+
+/* =====================================================================
+   ACTIONS
+   ===================================================================== */
+async function doUnzip(c, dur = 1.3) {
+  if (c.state.comp > 0) await doRelease(c);
+  await tween(dur, k => c.set({ zip: 1 - k }), ease.inOut);
+}
+async function doOpenLid(c, dur = 1.2) {
+  if (c.spec.kind !== 'rect') return;
+  await tween(dur, k => c.set({ lid: k }), ease.back);
+}
+async function doCloseLid(c, dur = 1.0) {
+  if (c.spec.kind !== 'rect' || c.state.lid === 0) return;
+  const from = c.state.lid;
+  await tween(dur, k => c.set({ lid: from * (1 - k) }), ease.inOut);
+}
+async function doZip(c, dur = 1.3) {
+  const from = c.state.zip;
+  await tween(dur * (1 - from) + 0.01, k => c.set({ zip: lerp(from, 1, k) }), ease.inOut);
+}
+async function doCompress(c, { dock = true, dur = 3.4 } = {}) {
+  if (c.state.lid > 0) await doCloseLid(c);
+  if (c.state.zip < 1) await doZip(c);
+  await attachPump(c);
+  await runPump(c, dur);
+  showHud(null);
+  if (dock) await dockPump();
+}
+async function doRelease(c, dur = 1.6) {
+  const cap = c.valve.userData.cap, y0 = 0.04;
+  await tween(0.25, k => (cap.position.y = y0 - 0.02 * k), ease.out);
+  const from = c.state.comp;
+  await tween(dur, k => c.set({ comp: from * (1 - k) }), ease.out);
+  await tween(0.2, k => (cap.position.y = y0 - 0.02 * (1 - k)), ease.out);
+}
+
+/* =====================================================================
+   DEMO STORY
+   ===================================================================== */
+const hero = () => cubes.M;
+const capEl = document.getElementById('caption'), capTitle = document.getElementById('capTitle'), capText = document.getElementById('capText');
+function caption(title, text) { capTitle.textContent = title; capText.textContent = text; }
+const PACK_LAYOUT = {   // where each compressed cube sits inside the open suitcase (suitcase-local)
+  L: { p: [0, 0.07, 0], r: 0 },
+  M: { p: [-1.15, 0.7, -0.62], r: 0 },
+  S: { p: [1.85, 0.7, -0.62], r: Math.PI / 2 },
+  C: { p: [0.05, 0.7, 1.3], r: 0 },
+};
+const STEPS = [
+  { title: 'Unzip', text: 'Two sliders run the 3-sided zipper from the front back to the hinge corners.',
+    run: async () => { await focusCube(hero(), 1.2, 0.6); await doUnzip(hero(), 1.6); } },
+  { title: 'Open & pack', text: 'The lid folds back on its hinge. Clothes go in flat.',
+    run: async () => { await doOpenLid(hero(), 1.3); await tween(2.0, k => hero().set({ pack: k }), ease.linear); await wait(0.4); } },
+  { title: 'Zip closed', text: 'Close the lid and zip the sliders back to the front.',
+    run: async () => { await doCloseLid(hero(), 1.1); await doZip(hero(), 1.5); } },
+  { title: 'Attach pump', text: 'The palm-size pump seats on the one-way valve in the lid corner.',
+    run: async () => { await focusCube(hero(), 0.8, 1.1); await attachPump(hero(), 1.5); await wait(0.3); } },
+  { title: 'Pump the air out', text: 'Air is pulled through the valve. The cube flattens to about half its height and stays that way.',
+    run: async () => { await runPump(hero(), 4.0); } },
+  { title: 'Repeat for the set', text: 'One pump fits every cube, including the cylinder’s end-cap valve.',
+    run: async () => {
+      await overview(1.1);
+      for (const id of ['S', 'L', 'C']) { await attachPump(cubes[id], 0.95); await runPump(cubes[id], 1.8); }
+      showHud(null);
+      await dockPump(1.0);
+    } },
+  { title: 'Into the bag', text: '',
+    run: async () => {
+      const sc = suitcase.userData;
+      suitcase.visible = true;
+      sc.lidPivot.rotation.x = -1.95;
+      await Promise.all([
+        flyTo(new THREE.Vector3(4.6, 0.5, 0.3), new THREE.Vector3(0.0, 0.78, 0.63), 10.2, 1.5),
+        tween(1.0, k => suitcase.scale.setScalar(Math.max(0.001, k)), ease.back),
+      ]);
+      const order = ['L', 'M', 'S', 'C'];
+      await Promise.all(order.map((id, i) => (async () => {
+        await wait(i * 0.45);
+        const c = cubes[id], lay = PACK_LAYOUT[id];
+        const from = c.group.position.clone(), r0 = c.group.rotation.y;
+        const to = SUITCASE_AT.clone().add(new THREE.Vector3(...lay.p));
+        const ctrl = from.clone().lerp(to, 0.5); ctrl.y = 3.4;
+        await tween(1.5, k => {
+          const a = from.clone().lerp(ctrl, k), b = ctrl.clone().lerp(to, k);
+          c.group.position.lerpVectors(a, b, k);
+          c.group.rotation.y = lerp(r0, lay.r, k);
+        }, ease.inOut);
+      })()));
+      await flyTo(SUITCASE_AT.clone().setY(0.7), new THREE.Vector3(-0.3, 0.82, 0.55), 5.4, 1.3);
+      await wait(0.5);
+      await tween(1.4, k => (sc.lidPivot.rotation.x = -1.95 * (1 - k)), ease.inOut);
+      await wait(0.2);
+    } },
+];
+const totalL = Object.values(cubes).reduce((a, c) => a + liters(c), 0);
+function liters(c) {
+  if (c.spec.kind === 'rect') return (c.spec.w * c.spec.h * c.spec.d);
+  return Math.PI * (c.spec.dia / 2) ** 2 * c.spec.len;
+}
+function compressedLiters() {
+  return Object.values(cubes).reduce((a, c) => {
+    const t = 1, s = S_MIN; return a + liters(c) * s * (1 - c.shrinkX * t) * (1 + c.growZ * t);
+  }, 0);
+}
+STEPS[6].text = `${totalL.toFixed(1)} L of packing cubes shrink to about ${compressedLiters().toFixed(1)} L, and the whole set closes inside one carry-on.`;
+
+let demoStep = -1;
+const stepsEl = document.getElementById('steps');
+STEPS.forEach((s, i) => {
+  const li = document.createElement('li');
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.innerHTML = `<span class="n">${i + 1}</span><span class="t">${s.title}</span>`;
+  b.addEventListener('click', () => playDemo(i));
+  li.appendChild(b); stepsEl.appendChild(li);
+});
+function markSteps() {
+  [...stepsEl.querySelectorAll('button')].forEach((b, i) => {
+    b.classList.toggle('done', i < demoStep);
+    b.classList.toggle('cur', i === demoStep);
+    if (i === demoStep) b.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  });
+}
+
+function resetAll() {
+  cancelAll();
+  paused = false; setPlayIcon();
+  for (const c of Object.values(cubes)) {
+    c.group.position.copy(c.home.pos);
+    c.group.rotation.y = c.home.rotY;
+    c.set({ zip: 1, lid: 0, comp: 0, pack: 1 });
+    c.valve.userData.cap.position.y = 0.04;
+  }
+  pumpState.attachedTo = null;
+  pump.position.copy(PUMP_DOCK).setY(0.035);
+  pump.quaternion.identity();
+  pump.userData.running = false;
+  pumpState.battery = 100;
+  suitcase.visible = false;
+  suitcase.scale.setScalar(0.001);
+  suitcase.userData.lidPivot.rotation.x = -1.95;
+  showHud(null);
+}
+
+async function playDemo(from = 0) {
+  setMode('demo', true);
+  await runSeq(async () => {
+    resetAll();
+    busy = true;
+    hero().set({ pack: 0 });
+    if (from > 0) {               // fast-forward the earlier steps instantly
+      FAST = true;
+      try { for (let i = 0; i < from; i++) await STEPS[i].run(); }
+      finally { FAST = false; }
+      showHud(null);
+    }
+    capEl.hidden = false;
+    for (let i = from; i < STEPS.length; i++) {
+      demoStep = i; markSteps();
+      caption(`${i + 1}. ${STEPS[i].title}`, STEPS[i].text);
+      await STEPS[i].run();
+    }
+    demoStep = STEPS.length; markSteps();
+    caption('Packed.', STEPS[6].text);
+  });
+}
+
+/* =====================================================================
+   UI: mode, panel, selection
+   ===================================================================== */
+let mode = 'explore';
+let selected = null;
+const panel = document.getElementById('panel');
+const btnExplore = document.getElementById('modeExplore'), btnDemo = document.getElementById('modeDemo');
+const timeline = document.getElementById('timeline'), hint = document.getElementById('hint');
+
+function setMode(m, fromDemo = false) {
+  if (m === mode && !fromDemo) return;
+  mode = m;
+  btnExplore.setAttribute('aria-pressed', String(m === 'explore'));
+  btnDemo.setAttribute('aria-pressed', String(m === 'demo'));
+  timeline.hidden = m !== 'demo';
+  capEl.hidden = m !== 'demo';
+  hint.hidden = m === 'demo';
+  panel.hidden = m === 'demo';
+  for (const t of Object.values(nameTags)) t.visible = m === 'explore';
+  if (m === 'explore') {
+    resetAll();
+    demoStep = -1; busy = false;
+    select(null, true);
+    overview(1.2).catch(() => {});
+  } else {
+    selected = null; applyHotspots();
+  }
+  resize();
+}
+btnExplore.addEventListener('click', () => setMode('explore'));
+btnDemo.addEventListener('click', () => { if (mode !== 'demo') playDemo(0); });
+document.getElementById('restartBtn').addEventListener('click', () => playDemo(0));
+const playBtn = document.getElementById('playBtn'), playIcon = document.getElementById('playIcon');
+function setPlayIcon() {
+  playIcon.innerHTML = paused
+    ? '<path d="M4 2.5v11a.8.8 0 0 0 1.2.7l9-5.5a.8.8 0 0 0 0-1.4l-9-5.5A.8.8 0 0 0 4 2.5z"/>'
+    : '<rect x="3" y="2" width="3.5" height="12" rx="1"/><rect x="9.5" y="2" width="3.5" height="12" rx="1"/>';
+  playBtn.setAttribute('aria-label', paused ? 'Play' : 'Pause');
+}
+playBtn.addEventListener('click', () => {
+  if (demoStep >= STEPS.length) { playDemo(0); return; }
+  paused = !paused; setPlayIcon();
+});
+
+// colorways
+const swatches = document.getElementById('swatches');
+COLORWAYS.forEach(cw => {
+  const b = document.createElement('button');
+  b.className = 'swatch'; b.type = 'button';
+  b.style.background = cw.fabric;
+  b.title = cw.name; b.setAttribute('aria-label', `${cw.name} colorway`);
+  b.setAttribute('aria-pressed', String(cw === colorway));
+  b.addEventListener('click', () => {
+    colorway = cw;
+    Object.values(cubes).forEach(c => c.setColor(cw.fabric));
+    [...swatches.querySelectorAll('.swatch')].forEach(s => s.setAttribute('aria-pressed', String(s === b)));
+  });
+  swatches.appendChild(b);
+});
+
+const INFO = {
+  L: { feats: ['3-sided perimeter zipper with two sliders, hinged along the back edge', 'One-way valve on the lid, front-right corner', 'Side grab strap for pulling it out of a full bag'] },
+  M: { feats: ['3-sided perimeter zipper with two sliders, hinged along the back edge', 'One-way valve on the lid, front-right corner', 'Side grab strap for pulling it out of a full bag'] },
+  S: { feats: ['3-sided perimeter zipper with two sliders, hinged along the back edge', 'One-way valve on the lid, front-right corner', 'Small enough for a backpack side pocket'] },
+  C: { feats: ['Full-length zipper on the long side', 'One-way valve on the end cap', 'Grab loop on the opposite end; slides into duffel ends and backpack bottoms'] },
+};
+function esc(s) { return String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch])); }
+
+function refreshPanel() {
+  if (mode !== 'explore') return;
+  if (!selected) {
+    panel.innerHTML = `
+      <div>
+        <h2>The set</h2>
+        <p class="sub">Three rectangular cubes, one cylinder, one pump. Built for backpacks, duffels and suitcases, checked or carry-on.</p>
+      </div>
+      <ul class="lineup">
+        ${Object.values(cubes).map(c => `
+          <li><button type="button" data-sel="${c.id}">
+            <span class="badge">${c.id}</span>
+            <span><span class="nm">${esc(c.spec.name)}</span><br><span class="dm">${esc(c.spec.dims)}</span></span>
+            <span class="vol">${liters(c).toFixed(1)} L</span>
+          </button></li>`).join('')}
+        <li><button type="button" data-sel="P">
+          <span class="badge">P</span>
+          <span><span class="nm">Pocket pump</span><br><span class="dm">≈ 7 cm Ø × 9 cm · USB-C</span></span>
+          <span class="vol">1×</span>
+        </button></li>
+      </ul>
+      <div class="actions">
+        <button class="btn primary" type="button" id="pDemo">Watch the demo</button>
+      </div>
+      <p class="note">Click any cube in the scene to open its spec sheet. Sizes and compression figures are concept targets for the class prototype, not test results.</p>`;
+    panel.querySelectorAll('[data-sel]').forEach(b => b.addEventListener('click', () => select(b.dataset.sel)));
+    panel.querySelector('#pDemo').addEventListener('click', () => playDemo(0));
+    return;
+  }
+  if (selected === 'P') {
+    panel.innerHTML = `
+      <button class="back" type="button" id="pBack">← All items</button>
+      <div><h2>Pocket pump</h2><p class="sub">One pump for all four cubes.</p></div>
+      <dl class="kv">
+        <dt>Size</dt><dd><b>≈ 7 cm Ø × 9 cm</b>, palm-size</dd>
+        <dt>Power</dt><dd>Battery-powered, USB-C rechargeable</dd>
+        <dt>Battery</dt><dd><b>${Math.round(pumpState.battery)}%</b> in this demo (≈ 2–3% per cube, illustrative)</dd>
+        <dt>Fits</dt><dd>Every cube's valve: lid corner on S/M/L, end cap on the cylinder</dd>
+      </dl>
+      <ul class="feat">
+        <li>One button. LED ring shows idle, running and charging.</li>
+        <li>Rubber nozzle seals on the valve. No hose to lose.</li>
+        <li>Lives on its charging puck at home, rides in a pocket while travelling.</li>
+      </ul>
+      <div class="actions">
+        <button class="btn primary" type="button" id="pRun" ${busy ? 'disabled' : ''}>Run it on the Medium cube</button>
+      </div>
+      <p class="note">Whiteboard constraints carried into the model: space and battery life.</p>`;
+    panel.querySelector('#pBack').addEventListener('click', () => select(null));
+    panel.querySelector('#pRun').addEventListener('click', () => { select('M', true); runSeq(async () => { await focusCube(cubes.M, 0.9, 1.1); await doCompress(cubes.M); }); });
+    return;
+  }
+  const c = cubes[selected], st = c.state, isRect = c.spec.kind === 'rect';
+  const open = isRect ? st.lid > 0.5 : st.zip < 0.5;
+  const comp = st.comp > 0.5;
+  const thick = isRect ? `${(c.spec.h * 10).toFixed(0)} cm → ≈ ${(c.spec.h * 10 * S_MIN).toFixed(0)} cm` : `Ø ${(c.spec.dia * 10).toFixed(0)} cm → ≈ ${(c.spec.dia * 10 * S_MIN).toFixed(0)} cm tall`;
+  const vComp = liters(c) * S_MIN * (1 - c.shrinkX) * (1 + c.growZ);
+  panel.innerHTML = `
+    <button class="back" type="button" id="pBack">← All items</button>
+    <div><h2>${esc(c.spec.name)} ${isRect ? 'cube' : ''}</h2><p class="sub">${esc(c.spec.use)}</p></div>
+    <dl class="kv">
+      <dt>Size</dt><dd><b>${esc(c.spec.dims)}</b></dd>
+      <dt>Volume</dt><dd><b>${liters(c).toFixed(1)} L</b> → ≈ <b>${vComp.toFixed(1)} L</b> compressed</dd>
+      <dt>Height</dt><dd>${thick}</dd>
+      <dt>State</dt><dd>${comp ? 'Compressed' : open ? (isRect ? 'Open' : 'Unzipped') : 'Zipped'}</dd>
+    </dl>
+    <ul class="feat">${INFO[c.id].feats.map(f => `<li>${esc(f)}</li>`).join('')}</ul>
+    <div class="actions">
+      <button class="btn" type="button" id="aOpen" ${busy ? 'disabled' : ''}>${open ? (isRect ? 'Close & zip' : 'Zip up') : (isRect ? 'Unzip & open' : 'Unzip')}</button>
+      <button class="btn primary" type="button" id="aPump" ${busy ? 'disabled' : ''}>${comp ? 'Release air' : 'Pump air out'}</button>
+    </div>
+    <p class="note">Sizes and compression are concept targets, not test results.</p>`;
+  panel.querySelector('#pBack').addEventListener('click', () => select(null));
+  panel.querySelector('#aOpen').addEventListener('click', () => runSeq(async () => {
+    if (open) { await doCloseLid(c); await doZip(c); }
+    else { await doUnzip(c); await doOpenLid(c); }
+  }));
+  panel.querySelector('#aPump').addEventListener('click', () => runSeq(async () => {
+    if (comp) await doRelease(c); else await doCompress(c);
+  }));
+}
+
+function applyHotspots() {
+  for (const c of Object.values(cubes)) {
+    const on = mode === 'explore' && selected === c.id;
+    c.hotspots.forEach(h => (h.visible = on));
+    if (nameTags[c.id]) nameTags[c.id].visible = mode === 'explore' && !selected;
+  }
+  if (nameTags.P) nameTags.P.visible = mode === 'explore' && !selected;
+}
+function select(id, silent = false) {
+  if (mode !== 'explore') return;
+  selected = id;
+  controls.autoRotate = false;
+  refreshPanel();
+  applyHotspots();
+  resize();
+  if (silent) return;
+  if (!id) overview(1.1).catch(() => {});
+  else if (id === 'P') flyTo(pump.position.clone().setY(0.45), new THREE.Vector3(0.3, 0.55, 0.9), 1.3, 1.1).catch(() => {});
+  else focusCube(cubes[id], 1.1).catch(() => {});
+}
+
+/* ---------- picking ---------- */
+const ray = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+let downAt = null, hovered = null;
+function pick(ev) {
+  const r = canvas.getBoundingClientRect();
+  ndc.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const objs = [pump, ...Object.values(cubes).map(c => c.group)];
+  const hit = ray.intersectObjects(objs, true).find(h => h.object.visible && h.object.userData.cubeId);
+  return hit ? hit.object.userData.cubeId : null;
+}
+canvas.addEventListener('pointerdown', ev => { downAt = { x: ev.clientX, y: ev.clientY }; });
+canvas.addEventListener('pointerup', ev => {
+  if (!downAt) return;
+  const moved = Math.hypot(ev.clientX - downAt.x, ev.clientY - downAt.y);
+  downAt = null;
+  if (moved > 6 || mode !== 'explore') return;
+  const id = pick(ev);
+  if (id !== selected) select(id);
+});
+canvas.addEventListener('pointermove', ev => {
+  if (ev.pointerType !== 'mouse' || mode !== 'explore') return;
+  const id = pick(ev);
+  if (id === hovered) return;
+  hovered = id;
+  canvas.style.cursor = id ? 'pointer' : '';
+  for (const c of Object.values(cubes)) c.fabric.emissiveIntensity = c.id === id ? 0.14 : 0;
+});
+canvas.addEventListener('keydown', ev => { if (ev.key === 'Escape') select(null); });
+
+/* ---------- theme sync ---------- */
+function syncTheme() {
+  const cs = getComputedStyle(document.documentElement);
+  groundMat.opacity = parseFloat(cs.getPropertyValue('--shadow')) || 0.24;
+  airColor = new THREE.Color(cs.getPropertyValue('--air').trim() || '#2F86C8');
+}
+syncTheme();
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', syncTheme);
+new MutationObserver(syncTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+/* =====================================================================
+   LOOP
+   ===================================================================== */
+const clock = new THREE.Clock();
+const pq = new THREE.Vector3(), qq = new THREE.Quaternion();
+let lastBusy = busy;
+function frame() {
+  const dt = Math.min(clock.getDelta(), 1 / 20);
+  stepTweens(dt);
+  for (const c of Object.values(cubes)) c.update();
+  if (pumpState.attachedTo) {
+    pumpTargetFor(pumpState.attachedTo, pq, qq);
+    pump.position.copy(pq); pump.quaternion.copy(qq);
+  }
+  const pu = pump.userData;
+  const runningNow = pu.running && !paused;
+  pu.spin = lerp(pu.spin, runningNow ? 38 : 0, 1 - Math.exp(-dt * 4));
+  pu.fan.rotation.y += pu.spin * dt;
+  pu.body.position.set(runningNow ? (Math.random() - 0.5) * 0.008 : 0, runningNow ? (Math.random() - 0.5) * 0.006 : 0, 0);
+  pu.ledMat.emissive.set(pu.running ? '#3DDC84' : '#4FA3FF');
+  pu.ledMat.emissiveIntensity = pu.running ? 1.4 + 0.5 * Math.sin(performance.now() / 120) : 0.9;
+  updateParticles(dt);
+  updateHud();
+  if (busy !== lastBusy) { lastBusy = busy; refreshPanel(); }
+  controls.update();
+  renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+
+refreshPanel();
+applyHotspots();
+resize();
+camera.position.copy(new THREE.Vector3(-0.3, 0.3, 0.3).add(VIEW_DIR.clone().normalize().multiplyScalar(frameDistance(5.0) * 1.25)));
+overview(1.6).catch(() => {});
+window.__cubesReady = true;
+document.getElementById('fallback').hidden = true;
+window.__cubes = { cubes, pump, pumpState, suitcase, playDemo, setMode, select, STEPS, pause: v => { paused = v; setPlayIcon(); }, attachNow: id => { pumpState.attachedTo = id ? cubes[id] : null; pump.userData.running = !!id; } };
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
