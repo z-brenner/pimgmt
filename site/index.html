@@ -355,7 +355,7 @@ const CUBES = [
     dims: '30 cm long × 12 cm Ø', use: 'Rolled tees, gym kit, cables and chargers', clothes: ['#C7533B', '#2E4B5F'] },
 ];
 const PUMP_DOCK = new THREE.Vector3(-0.1, 0, -1.55);
-const SUITCASE_AT = new THREE.Vector3(11.5, 0, 0.4);
+const PACK_AT = new THREE.Vector3(11.5, 0, 0.4);
 
 /* ===================================================================== */
 
@@ -1126,55 +1126,145 @@ function buildPump() {
 }
 
 /* =====================================================================
-   SUITCASE (for the finale)
+   BACKPACK (for the finale)
+   Pack-local axes: +x = top of the pack, y = 0 is the back panel, z = across.
+   It lies on its harness with the front panel unzipped clamshell-style,
+   then tips up onto its base once it's packed.
    ===================================================================== */
-function buildSuitcase() {
-  const W = 5.85, D = 4.05, Hb = 1.3, Hl = 1.0, R = 0.42, r = 0.3, th = 0.06;
+// Flat padded strap swept along a path. `across` is the direction the strap's width should face.
+function strapGeometry(pts, w, t, across, steps = 48) {
+  const path = new THREE.CatmullRomCurve3(pts);
+  path.computeFrenetFrames = n => {   // ExtrudeGeometry asks the path for its frames; hand it untwisted ones
+    const tangents = [], normals = [], binormals = [];
+    for (let i = 0; i <= n; i++) {
+      const T = path.getTangentAt(i / n);
+      const N = across.clone().addScaledVector(T, -across.dot(T)).normalize();
+      tangents.push(T); normals.push(N); binormals.push(new THREE.Vector3().crossVectors(T, N));
+    }
+    return { tangents, normals, binormals };
+  };
+  const s = new THREE.Shape(), r = Math.min(w, t) * 0.45, x = w / 2 - r, y = t / 2 - r;
+  s.absarc(x, y, r, 0, Math.PI / 2);
+  s.absarc(-x, y, r, Math.PI / 2, Math.PI);
+  s.absarc(-x, -y, r, Math.PI, 1.5 * Math.PI);
+  s.absarc(x, -y, r, 1.5 * Math.PI, 2 * Math.PI);
+  return new THREE.ExtrudeGeometry(s, { steps, bevelEnabled: false, extrudePath: path, curveSegments: 4 });
+}
+function buildBackpack() {
+  const W = 6.8, D = 3.8, Hb = 1.5, Hl = 0.75, R = 0.8, r = 0.32, th = 0.06, lift = 0.36;
   const g = new THREE.Group();
-  const shellMat = new THREE.MeshPhysicalMaterial({ color: '#B9C4C7', roughness: 0.32, clearcoat: 0.9, clearcoatRoughness: 0.25 });
+  const tilt = new THREE.Group();   // hinges on the bottom edge so the pack can stand up
+  tilt.position.x = -W / 2;
+  g.add(tilt);
+  const body = new THREE.Group();   // raised by the harness it's lying on
+  body.position.set(W / 2, lift, 0);
+  tilt.add(body);
+  const shellMat = makeFabricMat('#3B5243');
   const linerMat = new THREE.MeshStandardMaterial({ color: '#56656B', roughness: 0.95, side: THREE.BackSide, bumpMap: fabricBump, bumpScale: 0.8 });
-  const base = new THREE.Mesh(cupGeometry(W, D, Hb, R, r), shellMat);
+  const padMat = new THREE.MeshStandardMaterial({ color: '#2B3230', roughness: 0.9, bumpMap: fabricBump, bumpScale: 1.2 });
+  const pocketMat = new THREE.MeshStandardMaterial({ color: '#232B29', roughness: 0.8, bumpMap: fabricBump, bumpScale: 2.0 });
+  const webMat = new THREE.MeshStandardMaterial({ color: '#171B1B', roughness: 0.75 });
+  const Z = new THREE.Vector3(0, 0, 1), X = new THREE.Vector3(1, 0, 0);
+
+  // narrow the top of the pack into a rounded crown
+  const crown = x => { const k = clamp((x - (W / 2 - 1.6)) / 1.6); return 1 - 0.22 * k * k; };
+  const shaped = (geo, normals = true) => {
+    const p = geo.attributes.position.array;
+    for (let i = 0; i < p.length; i += 3) p[i + 2] *= crown(p[i]);
+    if (normals) { geo.computeVertexNormals(); fixSeam(geo, geo.userData.seam); }
+    return geo;
+  };
+  const sideZ = x => (D / 2) * crown(x);
+
+  // main compartment (back half) and front panel (lid), joined by the U-zip
+  const base = new THREE.Mesh(shaped(cupGeometry(W, D, Hb, R, r)), shellMat);
   base.castShadow = base.receiveShadow = true;
-  const baseLiner = new THREE.Mesh(cupGeometry(W - 2 * th, D - 2 * th, Hb - th, R - th, r * 0.8, { y0: th }), linerMat);
+  const baseLiner = new THREE.Mesh(shaped(cupGeometry(W - 2 * th, D - 2 * th, Hb - th, R - th, r * 0.8, { y0: th })), linerMat);
   baseLiner.receiveShadow = true;
-  g.add(base, baseLiner);
+  body.add(base, baseLiner);
   const rr = makeRR(W, D, R);
-  g.add(new THREE.Mesh(rimTube(rr, Hb - 0.02, th / 2, 0.045), MAT.tape));
+  body.add(new THREE.Mesh(shaped(rimTube(rr, Hb - 0.02, th / 2, 0.045), false), MAT.tape));
   const lidPivot = new THREE.Group();
   lidPivot.position.set(0, Hb, -D / 2);
-  g.add(lidPivot);
-  const lg = cupGeometry(W, D, Hl, R, r, { flip: true, top: Hb + Hl }); lg.translate(0, -Hb, D / 2);
+  body.add(lidPivot);
+  const lg = shaped(cupGeometry(W, D, Hl, R, r, { flip: true, top: Hb + Hl })); lg.translate(0, -Hb, D / 2);
   const lid = new THREE.Mesh(lg, shellMat); lid.castShadow = true;
-  const llg = cupGeometry(W - 2 * th, D - 2 * th, Hl - th, R - th, r * 0.8, { flip: true, top: Hb + Hl - th }); llg.translate(0, -Hb, D / 2);
+  const llg = shaped(cupGeometry(W - 2 * th, D - 2 * th, Hl - th, R - th, r * 0.8, { flip: true, top: Hb + Hl - th })); llg.translate(0, -Hb, D / 2);
   const lidLiner = new THREE.Mesh(llg, linerMat);
-  const ltg = rimTube(rr, Hb + 0.02, th / 2, 0.045); ltg.translate(0, -Hb, D / 2);
+  const ltg = shaped(rimTube(rr, Hb + 0.02, th / 2, 0.045), false); ltg.translate(0, -Hb, D / 2);
   lidPivot.add(lid, lidLiner, new THREE.Mesh(ltg, MAT.tape));
-  for (const z of [-1.1, 0, 1.1]) {   // ribs on the lid
-    const rib = new THREE.Mesh(new RoundedBoxGeometry(W - 1.1, 0.05, 0.24, 2, 0.02), shellMat);
-    rib.position.set(0, Hl + 0.02, z + D / 2);
-    lidPivot.add(rib);
+  for (const x of [2.05, 2.4]) {   // U-zip sliders parked near the top
+    const sl = makeSlider();
+    sl.position.set(x, Hb, sideZ(x) + 0.01);
+    body.add(sl);
   }
-  // spinner wheels on the -x end (two per half), grab handle on the +x end
-  const wheelMat = new THREE.MeshStandardMaterial({ color: '#111', roughness: 0.8 });
-  const wheelAt = (parent, y, z) => {
-    const holder = new THREE.Group();
-    const housing = new THREE.Mesh(new RoundedBoxGeometry(0.22, 0.5, 0.5, 2, 0.08), MAT.dark);
-    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.12, 24), wheelMat);
-    wheel.rotation.z = Math.PI / 2; wheel.position.x = -0.16;
-    holder.add(housing, wheel);
-    holder.position.set(-W / 2 - 0.08, y, z);
-    parent.add(holder);
-  };
-  for (const z of [-D / 2 + 0.45, D / 2 - 0.45]) {
-    wheelAt(g, Hb * 0.45, z);
-    wheelAt(lidPivot, Hl * 0.55, z + D / 2);
+
+  // front panel: stretch pocket with a bungee lace, zippered top pocket
+  const onLid = (x, y, z) => new THREE.Vector3(x, y - Hb, z + D / 2);
+  const pocket = new THREE.Mesh(new RoundedBoxGeometry(2.7, 0.14, 2.6, 3, 0.07), pocketMat);
+  pocket.position.copy(onLid(-1.35, Hb + Hl + 0.03, 0));
+  lidPivot.add(pocket);
+  const lace = [];
+  for (let i = 0; i <= 6; i++) lace.push(onLid(-2.55 + i * 0.4, Hb + Hl + 0.12, (i % 2 ? 1 : -1) * 1.15));
+  lidPivot.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(lace, false, 'catmullrom', 0.1), 80, 0.025, 6), MAT.accent));
+  const topZip = new THREE.CatmullRomCurve3([-1.35, -0.7, 0, 0.7, 1.35].map(z => onLid(1.45 - 0.12 * (z * z), Hb + Hl + 0.005, z)));
+  lidPivot.add(new THREE.Mesh(new THREE.TubeGeometry(topZip, 30, 0.03, 6), MAT.tape));
+  const tzSlider = makeSlider();
+  tzSlider.position.copy(onLid(1.45 - 0.12 * 0.81, Hb + Hl + 0.01, 0.9));
+  tzSlider.quaternion.setFromRotationMatrix(tmpM.makeBasis(Z, X, UP));   // runs across the panel, pull hangs toward the base
+  lidPivot.add(tzSlider);
+
+  // sides: stretch bottle pocket low down, compression straps that buckle across the zip
+  for (const s of [-1, 1]) {
+    const bottle = new THREE.Mesh(new RoundedBoxGeometry(1.45, 0.95, 0.16, 3, 0.07), pocketMat);
+    bottle.position.set(-1.75, 0.82, s * (D / 2 + 0.05));
+    body.add(bottle);
+    for (const x of [-0.45, 1.35]) {
+      const z = s * (sideZ(x) + 0.015);
+      const web = new THREE.Mesh(new THREE.BoxGeometry(0.3, Hb - 0.5, 0.03), webMat);
+      web.position.set(x, 0.38 + (Hb - 0.5) / 2, z);
+      const buckle = new THREE.Mesh(new RoundedBoxGeometry(0.38, 0.22, 0.07, 2, 0.025), MAT.dark);
+      buckle.position.set(x, Hb - 0.14, z + s * 0.03);
+      body.add(web, buckle);
+    }
   }
+
+  // top haul loop
   const hcurve = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(W / 2 - 0.02, 0.62, -0.55), new THREE.Vector3(W / 2 + 0.16, 0.66, -0.4),
-    new THREE.Vector3(W / 2 + 0.2, 0.68, 0), new THREE.Vector3(W / 2 + 0.16, 0.66, 0.4), new THREE.Vector3(W / 2 - 0.02, 0.62, 0.55)]);
-  g.add(new THREE.Mesh(new THREE.TubeGeometry(hcurve, 30, 0.05, 10), MAT.dark));
+    new THREE.Vector3(W / 2 - 0.02, 0.55, -0.45), new THREE.Vector3(W / 2 + 0.16, 0.6, -0.32),
+    new THREE.Vector3(W / 2 + 0.2, 0.62, 0), new THREE.Vector3(W / 2 + 0.16, 0.6, 0.32), new THREE.Vector3(W / 2 - 0.02, 0.55, 0.45)]);
+  body.add(new THREE.Mesh(new THREE.TubeGeometry(hcurve, 30, 0.05, 10), webMat));
+
+  // harness on the back: padded back panel, S-curve shoulder straps, sternum strap, hip belt
+  const backPad = new THREE.Mesh(new RoundedBoxGeometry(2.8, 0.12, 2.3, 3, 0.05), padMat);
+  backPad.position.set(1.3, -0.05, 0);
+  body.add(backPad);
+  for (const s of [-1, 1]) {
+    const pts = [[2.85, -0.04, 0.5], [2.35, -0.17, 0.75], [1.2, -0.2, 1.05], [0, -0.17, 1.3], [-1.0, -0.1, 1.55], [-1.55, -0.03, 1.72]]
+      .map(([x, y, z]) => new THREE.Vector3(x, y, s * z));
+    body.add(new THREE.Mesh(strapGeometry(pts, 0.7, 0.13, Z), padMat));
+  }
+  const sternum = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.03, 2.1), webMat);
+  sternum.position.set(1.2, -0.28, 0);
+  const sternumBuckle = new THREE.Mesh(new RoundedBoxGeometry(0.22, 0.07, 0.36, 2, 0.025), MAT.accent);
+  sternumBuckle.position.set(1.2, -0.29, 0);
+  body.add(sternum, sternumBuckle);
+  const beltX = -2.05;
+  const belt = [[-2.7, -0.3], [-2.3, -0.17], [-1.75, -0.09], [-0.9, -0.12], [0, -0.14], [0.9, -0.12], [1.75, -0.09], [2.3, -0.17], [2.7, -0.3]]
+    .map(([z, y]) => new THREE.Vector3(beltX, y, z));
+  body.add(new THREE.Mesh(strapGeometry(belt, 0.95, 0.15, X, 64), padMat));
+  for (const s of [-1, 1]) {
+    const tail = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.03, 0.4), webMat);
+    tail.position.set(beltX, -0.33, s * 2.9);
+    const clip = new THREE.Mesh(new RoundedBoxGeometry(0.46, 0.08, 0.3, 2, 0.03), MAT.dark);
+    clip.position.set(beltX, -0.33, s * 3.12);
+    body.add(tail, clip);
+  }
+
   g.traverse(o => { if (o.isMesh) o.castShadow = true; });
-  g.userData = { lidPivot, W, D, Hb, th };
+  // where the middle of the pack ends up once it's standing (backpack-local)
+  const standCenter = new THREE.Vector3(-W / 2 - lift - (Hb + Hl) / 2, W / 2, 0);
+  g.userData = { lidPivot, tilt, body, standCenter, W, D, Hb, th };
   return g;
 }
 
@@ -1198,11 +1288,11 @@ puck.receiveShadow = true;
 scene.add(puck);
 pump.position.y = 0.035;
 
-const suitcase = buildSuitcase();
-suitcase.position.copy(SUITCASE_AT);
-suitcase.scale.setScalar(0.001);
-suitcase.visible = false;
-scene.add(suitcase);
+const backpack = buildBackpack();
+backpack.position.copy(PACK_AT);
+backpack.scale.setScalar(0.001);
+backpack.visible = false;
+scene.add(backpack);
 
 // floating name tags
 const nameTags = {};
@@ -1455,11 +1545,11 @@ async function doRelease(c, dur = 1.6) {
 const hero = () => cubes.M;
 const capEl = document.getElementById('caption'), capTitle = document.getElementById('capTitle'), capText = document.getElementById('capText');
 function caption(title, text) { capTitle.textContent = title; capText.textContent = text; }
-const PACK_LAYOUT = {   // where each compressed cube sits inside the open suitcase (suitcase-local)
-  L: { p: [0, 0.07, 0], r: 0 },
-  M: { p: [-1.15, 0.7, -0.62], r: 0 },
-  S: { p: [1.85, 0.7, -0.62], r: Math.PI / 2 },
-  C: { p: [0.05, 0.7, 1.3], r: 0 },
+const PACK_LAYOUT = {   // where each compressed cube sits inside the open backpack (pack-local, +x = top of the pack)
+  L: { p: [-1.0, 0.07, 0], r: 0 },
+  S: { p: [2.2, 0.07, 0], r: Math.PI / 2 },
+  M: { p: [-1.5, 0.7, 0], r: 0 },
+  C: { p: [1.6, 0.7, 0], r: 0 },
 };
 const STEPS = [
   { title: 'Unzip', text: 'Two sliders run the 3-sided zipper from the front back to the hinge corners.',
@@ -1479,21 +1569,22 @@ const STEPS = [
       showHud(null);
       await dockPump(1.0);
     } },
-  { title: 'Into the bag', text: '',
+  { title: 'Into the pack', text: '',
     run: async () => {
-      const sc = suitcase.userData;
-      suitcase.visible = true;
-      sc.lidPivot.rotation.x = -1.95;
+      const bp = backpack.userData;
+      backpack.visible = true;
+      bp.lidPivot.rotation.x = -1.95;
       await Promise.all([
         flyTo(new THREE.Vector3(4.6, 0.5, 0.3), new THREE.Vector3(0.0, 0.78, 0.63), 10.2, 1.5),
-        tween(1.0, k => suitcase.scale.setScalar(Math.max(0.001, k)), ease.back),
+        tween(1.0, k => backpack.scale.setScalar(Math.max(0.001, k)), ease.back),
       ]);
+      backpack.updateMatrixWorld(true);
       const order = ['L', 'M', 'S', 'C'];
       await Promise.all(order.map((id, i) => (async () => {
         await wait(i * 0.45);
         const c = cubes[id], lay = PACK_LAYOUT[id];
         const from = c.group.position.clone(), r0 = c.group.rotation.y;
-        const to = SUITCASE_AT.clone().add(new THREE.Vector3(...lay.p));
+        const to = bp.body.localToWorld(new THREE.Vector3(...lay.p));
         const ctrl = from.clone().lerp(to, 0.5); ctrl.y = 3.4;
         await tween(1.5, k => {
           const a = from.clone().lerp(ctrl, k), b = ctrl.clone().lerp(to, k);
@@ -1501,9 +1592,15 @@ const STEPS = [
           c.group.rotation.y = lerp(r0, lay.r, k);
         }, ease.inOut);
       })()));
-      await flyTo(SUITCASE_AT.clone().setY(0.7), new THREE.Vector3(-0.3, 0.82, 0.55), 5.4, 1.3);
+      await flyTo(PACK_AT.clone().setY(0.9), new THREE.Vector3(-0.3, 0.82, 0.55), 5.6, 1.3);
       await wait(0.5);
-      await tween(1.4, k => (sc.lidPivot.rotation.x = -1.95 * (1 - k)), ease.inOut);
+      await tween(1.4, k => (bp.lidPivot.rotation.x = -1.95 * (1 - k)), ease.inOut);
+      for (const c of Object.values(cubes)) bp.body.attach(c.group);   // ride along inside as it stands up
+      await wait(0.2);
+      await Promise.all([
+        flyTo(PACK_AT.clone().add(bp.standCenter).setY(bp.standCenter.y - 0.5), new THREE.Vector3(0.85, 0.32, 0.75), 5.6, 1.8),
+        tween(1.5, k => (bp.tilt.rotation.z = k * Math.PI / 2), ease.inOut),
+      ]);
       await wait(0.2);
     } },
 ];
@@ -1517,7 +1614,7 @@ function compressedLiters() {
     const t = 1, s = S_MIN; return a + liters(c) * s * (1 - c.shrinkX * t) * (1 + c.growZ * t);
   }, 0);
 }
-STEPS[6].text = `${totalL.toFixed(1)} L of packing cubes shrink to about ${compressedLiters().toFixed(1)} L, and the whole set closes inside one carry-on.`;
+STEPS[6].text = `${totalL.toFixed(1)} L of packing cubes shrink to about ${compressedLiters().toFixed(1)} L, and the whole set zips into one backpack.`;
 
 let demoStep = -1;
 const stepsEl = document.getElementById('steps');
@@ -1541,8 +1638,9 @@ function resetAll() {
   cancelAll();
   paused = false; setPlayIcon();
   for (const c of Object.values(cubes)) {
+    if (c.group.parent !== scene) scene.add(c.group);
     c.group.position.copy(c.home.pos);
-    c.group.rotation.y = c.home.rotY;
+    c.group.rotation.set(0, c.home.rotY, 0);
     c.set({ zip: 1, lid: 0, comp: 0, pack: 1 });
     c.valve.userData.cap.position.y = 0.04;
   }
@@ -1551,9 +1649,10 @@ function resetAll() {
   pump.quaternion.identity();
   pump.userData.running = false;
   pumpState.battery = 100;
-  suitcase.visible = false;
-  suitcase.scale.setScalar(0.001);
-  suitcase.userData.lidPivot.rotation.x = -1.95;
+  backpack.visible = false;
+  backpack.scale.setScalar(0.001);
+  backpack.userData.lidPivot.rotation.x = -1.95;
+  backpack.userData.tilt.rotation.z = 0;
   showHud(null);
 }
 
@@ -1829,7 +1928,7 @@ camera.position.copy(new THREE.Vector3(-0.3, 0.3, 0.3).add(VIEW_DIR.clone().norm
 overview(1.6).catch(() => {});
 window.__cubesReady = true;
 document.getElementById('fallback').hidden = true;
-window.__cubes = { cubes, pump, pumpState, suitcase, playDemo, setMode, select, STEPS, pause: v => { paused = v; setPlayIcon(); }, attachNow: id => { pumpState.attachedTo = id ? cubes[id] : null; pump.userData.running = !!id; } };
+window.__cubes = { cubes, pump, pumpState, backpack, playDemo, setMode, select, STEPS, pause: v => { paused = v; setPlayIcon(); }, attachNow: id => { pumpState.attachedTo = id ? cubes[id] : null; pump.userData.running = !!id; } };
 requestAnimationFrame(frame);
 </script>
 </body>

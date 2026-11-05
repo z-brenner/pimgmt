@@ -13,7 +13,7 @@ Original whiteboard sketch: [`docs/whiteboard-sketch.jpg`](docs/whiteboard-sketc
 | Mode | What it does |
 |---|---|
 | **Explore** | Orbit, zoom, click any cube or the pump for its spec sheet. Each cube has **Unzip & open** and **Pump air out / Release air** buttons. Four colorways. |
-| **Watch demo** | 7-step animated story: unzip → open & pack → zip → attach pump → pump air out (live volume / vacuum / battery readout) → repeat for the whole set → all four compressed cubes go into a carry-on and the lid closes. Steps are clickable, with pause and restart. |
+| **Watch demo** | 7-step animated story: unzip → open & pack → zip → attach pump → pump air out (live volume / vacuum / battery readout) → repeat for the whole set → all four compressed cubes go into a backpacker's pack, the front panel zips shut and the pack stands up. Steps are clickable, with pause and restart. |
 
 Everything is in one file: [`site/index.html`](site/index.html). No build step.
 
